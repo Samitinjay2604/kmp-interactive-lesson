@@ -2,3 +2,5 @@ __pycache__/
 *.class
 .DS_Store
 VIDEO_GUIDE.md
+video/raw/
+node_modules/

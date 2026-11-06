@@ -30,6 +30,9 @@ code/kmp.py           Python implementation, comparison counters, self-tests
 code/KMP.java         Java implementation with a randomised self-test
 code/challenges.py    3 coding challenges with automatic tests
 code/solutions.py     reference solutions
+video/kmp-demo.mp4    7.5-minute screen demo of the lesson
+video/NARRATION_SCRIPT.md   timed narration for the demo
+video/record-demo.js  Playwright script that records the demo
 ```
 
 ## Lesson plan (45 minutes, self-learning)

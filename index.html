@@ -1,0 +1,1541 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KMP Pattern Matching</title>
+<meta name="description" content="A 45-minute interactive lesson on the Knuth-Morris-Pratt string matching algorithm: borders, the LPS table, step-by-step search, complexity and practice.">
+<style>
+:root{
+  --bg:#f6f4ee; --paper:#fffdf8; --stage:#fbf9f3; --ink:#1d1b16; --muted:#6b665c; --line:#e2ddd0;
+  --accent:#3451c9; --accent-soft:#e3e8fb;
+  --ok:#1d8a4c; --ok-soft:#d3f0de; --bad:#c93c3c; --bad-soft:#f8dada;
+  --border-c:#7446e8; --border-soft:#e9e0ff; --warn:#b86e00; --warn-soft:#fbecd2;
+  --code-bg:#1d1f27; --code-ink:#e4e4e7; --code-mute:#7c8090; --code-hl:#2f3a63;
+  --cell:34px; --radius:12px;
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:ui-monospace,"Cascadia Code","SF Mono",Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#121318; --paper:#1b1c23; --stage:#17181e; --ink:#ebe9e3; --muted:#a29e94; --line:#2f313b;
+    --accent:#8fa3ff; --accent-soft:#252c4d;
+    --ok:#3fbf75; --ok-soft:#15392a; --bad:#ef6b6b; --bad-soft:#4a1f22;
+    --border-c:#a98bff; --border-soft:#2e2550; --warn:#f0a63a; --warn-soft:#3d2c12;
+    --code-bg:#0f1015; --code-hl:#28325a;
+    color-scheme:dark;
+  }
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:72px}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 var(--sans)}
+h1,h2,h3{font-family:var(--serif);line-height:1.2;font-weight:600}
+h2{font-size:1.9rem;margin:0 0 .3rem}
+h3{font-size:1.2rem;margin:1.6rem 0 .5rem}
+p{margin:.6rem 0}
+code,kbd{font-family:var(--mono);font-size:.92em;background:var(--accent-soft);padding:.05em .35em;border-radius:5px}
+a{color:var(--accent)}
+button{font:inherit;color:inherit}
+
+/* ---------- top bar ---------- */
+.top{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.top-in{max-width:1280px;margin:0 auto;display:flex;align-items:center;gap:16px;padding:10px 20px}
+.brand{font-family:var(--serif);font-weight:700;font-size:1.1rem;white-space:nowrap}
+.brand span{color:var(--accent)}
+.prog{flex:1;display:flex;align-items:center;gap:10px;min-width:0}
+.prog-bar{flex:1;height:8px;background:var(--line);border-radius:99px;overflow:hidden}
+.prog-bar i{display:block;height:100%;width:0;background:var(--ok);transition:width .4s}
+.prog-txt{font-size:.85rem;color:var(--muted);white-space:nowrap}
+
+/* ---------- layout ---------- */
+.layout{max-width:1280px;margin:0 auto;display:grid;grid-template-columns:230px minmax(0,1fr);gap:32px;padding:24px 20px 80px}
+main{min-width:0}
+.toc{position:sticky;top:76px;align-self:start}
+.toc ol{list-style:none;margin:0;padding:0}
+.toc a{display:flex;gap:10px;align-items:center;padding:7px 10px;border-radius:9px;text-decoration:none;color:var(--muted);font-size:.93rem}
+.toc a:hover{background:var(--paper);color:var(--ink)}
+.toc a.active{background:var(--paper);color:var(--ink);box-shadow:inset 3px 0 0 var(--accent)}
+.toc .dot{width:20px;height:20px;flex:none;border-radius:50%;border:1.5px solid var(--line);display:grid;place-items:center;font-size:.7rem}
+.toc a.done .dot{background:var(--ok);border-color:var(--ok);color:#fff}
+.toc .min{margin-left:auto;font-size:.78rem;opacity:.8}
+.toc-note{font-size:.8rem;color:var(--muted);margin:14px 10px}
+
+section.lesson{background:var(--paper);border:1px solid var(--line);border-radius:18px;padding:30px 34px;margin-bottom:28px}
+.eyebrow{font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);font-weight:600}
+.lead{font-size:1.08rem;color:var(--muted);max-width:68ch}
+.prose{max-width:72ch}
+.sec-foot{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:26px;padding-top:18px;border-top:1px dashed var(--line);flex-wrap:wrap}
+
+.callout{border-radius:var(--radius);padding:14px 18px;margin:16px 0;background:var(--accent-soft);border-left:4px solid var(--accent)}
+.callout.aha{background:var(--border-soft);border-color:var(--border-c)}
+.callout.warn{background:var(--warn-soft);border-color:var(--warn)}
+.callout.ok{background:var(--ok-soft);border-color:var(--ok)}
+.callout b.t{display:block;font-family:var(--serif);font-size:1.02rem;margin-bottom:2px}
+.callout p:first-of-type{margin-top:0}.callout p:last-child{margin-bottom:0}
+
+.rules{counter-reset:r;list-style:none;padding:0;margin:14px 0;display:grid;gap:10px}
+.rules li{counter-increment:r;position:relative;padding:10px 14px 10px 48px;background:var(--stage);border:1px solid var(--line);border-radius:10px}
+.rules li::before{content:counter(r);position:absolute;left:12px;top:10px;width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;display:grid;place-items:center;font-size:.8rem;font-weight:700}
+
+.legend{display:flex;flex-wrap:wrap;gap:8px 16px;font-size:.85rem;color:var(--muted);margin:10px 0}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.chip{width:18px;height:18px;border-radius:5px;border:1.5px solid var(--line);display:inline-block;background:var(--paper)}
+
+.map{display:flex;gap:3px;margin:14px 0 4px;border-radius:10px;overflow:hidden}
+.map a{flex:var(--m);background:var(--stage);border:1px solid var(--line);padding:8px 8px;font-size:.75rem;text-decoration:none;color:var(--muted);min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.map a b{display:block;color:var(--ink);font-size:.8rem}
+.map a.done{background:var(--ok-soft);border-color:var(--ok)}
+
+/* ---------- buttons & inputs ---------- */
+.btn{border:1px solid var(--line);background:var(--paper);padding:7px 14px;border-radius:9px;cursor:pointer;font-size:.92rem;line-height:1.3}
+.btn:hover:not(:disabled){border-color:var(--accent)}
+.btn:disabled{opacity:.4;cursor:default}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.ghost{background:transparent}
+.btn.icon{min-width:40px;padding:7px 10px}
+.btn:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,.board-wrap:focus-visible,a:focus-visible{outline:3px solid color-mix(in srgb,var(--accent) 55%,transparent);outline-offset:2px}
+.done-btn.is-done{background:var(--ok);border-color:var(--ok);color:#fff}
+label.f{display:flex;flex-direction:column;gap:3px;font-size:.78rem;color:var(--muted);font-weight:600}
+input[type=text],select,textarea{font:15px var(--mono);padding:7px 10px;border:1px solid var(--line);border-radius:9px;background:var(--paper);color:var(--ink);min-width:0}
+select{font-family:var(--sans)}
+
+/* ---------- board ---------- */
+.board-wrap{overflow-x:auto;padding:14px 12px;background:var(--stage);border:1px solid var(--line);border-radius:var(--radius);margin:12px 0}
+.board{display:inline-block;min-width:100%}
+.brow{display:flex;align-items:center;gap:10px;margin:4px 0}
+.blabel{width:58px;flex:none;font-size:.72rem;color:var(--muted);text-align:right;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.bcells{display:grid;grid-template-columns:repeat(var(--cols),var(--cell));gap:4px}
+.cell{width:var(--cell);height:var(--cell);display:grid;place-items:center;font:600 16px var(--mono);border-radius:7px;border:1.5px solid var(--line);background:var(--paper);transition:background .2s,border-color .2s,transform .2s}
+.cell.empty{border-color:transparent;background:transparent}
+.idx .cell{height:16px;border:none;background:none;font:11px var(--mono);color:var(--muted)}
+.small .cell{height:24px;font-size:12px;font-weight:500}
+.ptr .cell{height:20px;border:none;background:none;color:var(--accent);font-size:15px}
+.cell.ok-soft{background:var(--ok-soft);border-color:var(--ok)}
+.cell.cmp-eq{background:var(--ok);border-color:var(--ok);color:#fff;transform:translateY(-2px)}
+.cell.cmp-ne{background:var(--bad);border-color:var(--bad);color:#fff;transform:translateY(-2px)}
+.cell.border{background:var(--border-soft);border-color:var(--border-c)}
+.cell.next{border-style:dashed;border-color:var(--border-c)}
+.cell.ghost{opacity:.35}
+.cell.hit{box-shadow:inset 0 -4px 0 var(--accent)}
+.cell.new{background:var(--warn-soft);border-color:var(--warn)}
+.cell.lpsh{background:var(--warn-soft);border-color:var(--warn);outline:2px solid var(--warn)}
+.cell.r1{background:color-mix(in srgb,var(--warn) 14%,var(--paper))}
+.cell.r2{background:color-mix(in srgb,var(--warn) 34%,var(--paper))}
+.cell.r3{background:color-mix(in srgb,var(--bad) 55%,var(--paper));color:#fff}
+.cell.dim{color:var(--muted);font-weight:400}
+
+/* ---------- visualizer ---------- */
+.viz-side{display:grid;grid-template-columns:minmax(220px,300px) minmax(0,1fr);gap:16px;align-items:start}
+.viz-side .stats{margin:0}
+.viz{display:grid;grid-template-columns:minmax(0,1fr);gap:18px;margin:18px 0;padding:16px;border:1px solid var(--line);border-radius:16px;background:var(--bg)}
+.viz-inputs{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+.viz-inputs label.f{flex:1 1 140px}
+.viz-inputs label.f.wide{flex:2 1 220px}
+.viz-msg{min-height:3.4em;padding:10px 14px;border-radius:10px;background:var(--paper);border:1px solid var(--line);font-size:.95rem}
+.viz-msg .err{color:var(--bad);font-weight:600}
+.viz-controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:12px}
+.stepno{font:13px var(--mono);color:var(--muted);min-width:70px;text-align:center}
+.speed{display:flex;align-items:center;gap:6px;font-size:.8rem;color:var(--muted);margin-left:auto}
+.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:12px}
+.stat{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:7px 10px}
+.stat span{display:block;font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:600}
+.stat b{font:600 1.1rem var(--mono)}
+.stat.full{grid-column:1/-1}
+.meter{height:6px;border-radius:99px;background:var(--line);margin-top:5px;overflow:hidden}
+.meter i{display:block;height:100%;background:var(--accent)}
+
+.code{background:var(--code-bg);color:var(--code-ink);border-radius:12px;overflow:hidden;font:13px/1.55 var(--mono)}
+.code-title{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;color:var(--code-mute);font:600 .72rem var(--sans);text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid #ffffff14}
+.code pre{margin:0;padding:8px 0;overflow-x:auto}
+.ln{display:block;padding:0 12px 0 0;white-space:pre;border-left:3px solid transparent}
+.ln i{display:inline-block;width:30px;text-align:right;margin-right:12px;color:var(--code-mute);font-style:normal;user-select:none}
+.ln.on{background:var(--code-hl);border-left-color:#ffd166}
+.kw{color:#c792ea;font-weight:400}.bi{color:#82aaff;font-weight:400}.num{color:#f78c6c;font-weight:400}.str{color:#c3e88d}.com{color:#7c8494;font-style:italic}
+
+/* ---------- misc widgets ---------- */
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-top:12px}
+.tabs button{border:none;background:none;padding:8px 14px;cursor:pointer;border-bottom:2px solid transparent;color:var(--muted);font-weight:600}
+.tabs button[aria-selected=true]{color:var(--ink);border-color:var(--accent)}
+.panel[hidden]{display:none}
+.copy{background:#ffffff14;border:none;color:var(--code-ink);border-radius:6px;padding:3px 9px;cursor:pointer;font:600 .7rem var(--sans)}
+
+table.t{border-collapse:collapse;width:100%;font-size:.92rem;margin:12px 0}
+table.t th,table.t td{border-bottom:1px solid var(--line);padding:8px 10px;text-align:left}
+table.t th{font-size:.75rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+table.t tr.yes td{background:var(--border-soft)}
+.tbl-wrap{overflow-x:auto}
+
+.quiz .q{border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin:12px 0;background:var(--stage)}
+.quiz .q > p{margin:0 0 10px;font-weight:600}
+.quiz .q .qn{color:var(--accent);margin-right:6px}
+.opts{display:grid;gap:7px}
+.opt{text-align:left;border:1.5px solid var(--line);background:var(--paper);border-radius:9px;padding:8px 12px;cursor:pointer}
+.opt:hover:not(:disabled){border-color:var(--accent)}
+.opt:disabled{cursor:default}
+.opt.right{border-color:var(--ok);background:var(--ok-soft)}
+.opt.wrong{border-color:var(--bad);background:var(--bad-soft)}
+.why{margin-top:10px;font-size:.92rem;padding:10px 12px;border-radius:9px;background:var(--paper);border:1px solid var(--line)}
+.score{font-weight:700;font-family:var(--serif);font-size:1.1rem}
+.checkpoint-h{display:flex;align-items:center;gap:8px;font-family:var(--serif);font-weight:600;margin-top:22px}
+.checkpoint-h::before{content:"?";width:24px;height:24px;border-radius:50%;background:var(--warn);color:#fff;display:grid;place-items:center;font:700 .85rem var(--sans)}
+
+.fill-row{display:grid;grid-template-columns:repeat(var(--cols),44px);gap:6px;margin:6px 0}
+.fill-row .cell{width:44px}
+.fill-row input{width:44px;height:40px;text-align:center;font:600 16px var(--mono);border:1.5px solid var(--line);border-radius:8px;background:var(--paper);color:var(--ink)}
+.fill-row input.right{border-color:var(--ok);background:var(--ok-soft)}
+.fill-row input.wrong{border-color:var(--bad);background:var(--bad-soft)}
+.fill-lab{font-size:.72rem;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+.feedback{margin-top:10px;min-height:1.6em;font-size:.95rem}
+
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px;margin:14px 0}
+.card{border:1px solid var(--line);border-radius:12px;padding:14px 16px;background:var(--stage);display:flex;flex-direction:column;gap:6px}
+.card h4{margin:0;font-family:var(--serif);font-size:1.05rem}
+.card p{margin:0;font-size:.92rem}
+.card .btn{align-self:flex-start;margin-top:auto}
+
+.chart{width:100%;height:auto;display:block;background:var(--stage);border:1px solid var(--line);border-radius:12px}
+.chart text{fill:var(--muted);font:11px var(--sans)}
+.chart .ax{stroke:var(--line)}
+.controls-row{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;margin:10px 0}
+.controls-row label.f{min-width:150px}
+.readout{font-size:.95rem;margin:8px 0}
+
+.pg{border:1px solid var(--line);border-radius:14px;overflow:hidden;margin:14px 0}
+.pg-head{padding:14px 16px;background:var(--stage);border-bottom:1px solid var(--line)}
+.pg-head h4{margin:0 0 4px;font-family:var(--serif);font-size:1.1rem}
+.pg-head .lvl{font:700 .68rem var(--sans);text-transform:uppercase;letter-spacing:.06em;padding:2px 8px;border-radius:99px;background:var(--accent-soft);color:var(--accent);margin-left:6px;vertical-align:middle}
+.pg textarea{display:block;width:100%;min-height:210px;border:none;border-radius:0;background:var(--code-bg);color:var(--code-ink);font:13.5px/1.55 var(--mono);padding:14px 16px;resize:vertical;tab-size:4}
+.pg-bar{display:flex;flex-wrap:wrap;gap:8px;padding:10px 12px;background:var(--stage);border-top:1px solid var(--line);align-items:center}
+.pg-out{margin:0;padding:12px 16px;background:var(--paper);font:13px/1.55 var(--mono);white-space:pre-wrap;min-height:3em;border-top:1px solid var(--line)}
+.hint{font-size:.92rem;margin:0;padding:10px 16px;background:var(--warn-soft);border-top:1px solid var(--line)}
+
+.sheet{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin:14px 0}
+.sheet div{padding:12px 14px;border-radius:12px;background:var(--stage);border:1px solid var(--line);font-size:.92rem}
+.sheet b{display:block;font-family:var(--serif);font-size:1rem;margin-bottom:3px}
+
+/* ---------- responsive ---------- */
+@media (max-width:760px){ .viz-side{grid-template-columns:1fr} .viz{padding:12px} }
+@media (max-width:860px){
+  .layout{grid-template-columns:minmax(0,1fr);padding:16px 16px 60px;gap:16px}
+  .toc{min-width:0}
+  .toc{position:static}
+  .toc ol{display:flex;overflow-x:auto;gap:4px;padding-bottom:6px}
+  .toc a{white-space:nowrap}
+  .toc .min,.toc-note{display:none}
+  section.lesson{padding:22px 18px}
+  h2{font-size:1.55rem}
+  :root{--cell:30px}
+  .blabel{width:44px;font-size:.64rem}
+  .prog-txt{display:none}
+  .map a span{display:none}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="top-in">
+    <div class="brand"><span>KMP</span> in 45 minutes</div>
+    <div class="prog" aria-label="Lesson progress">
+      <div class="prog-bar"><i id="progFill"></i></div>
+      <div class="prog-txt" id="progTxt"></div>
+    </div>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc" aria-label="Lesson sections">
+    <ol id="toc"></ol>
+    <p class="toc-note">Times are a guide for one sitting of 45 minutes. Mark each section complete as you go; your progress stays in this browser.</p>
+  </nav>
+
+  <main>
+
+<!-- ============================ 0. INTRO ============================ -->
+<section class="lesson" id="intro">
+  <div class="eyebrow">Start here · 3 min</div>
+  <h2>Find a needle without re-reading the haystack</h2>
+  <p class="lead">When you press Ctrl+F, scan a genome for a gene, or filter server logs for an error code, the program is solving one problem: <strong>find every place a short pattern occurs in a long text.</strong></p>
+  <div class="prose">
+    <p>The obvious method works, but when a match fails it goes back and re-reads characters it has already seen. The <strong>Knuth–Morris–Pratt algorithm</strong> (KMP, 1977) avoids that with one idea. When a match fails, <em>the pattern itself</em> tells you how far you can safely slide it, so the reading position in the text <strong>never moves backward</strong>.</p>
+  </div>
+
+  <div class="callout ok">
+    <b class="t">By the end of this lesson you will be able to…</b>
+    <ol style="margin:.3rem 0 0;padding-left:1.2rem">
+      <li>explain why naive search can take <code>O(n·m)</code> time;</li>
+      <li>compute the <strong>LPS table</strong> of any pattern by hand;</li>
+      <li>trace KMP on an example and predict every “fallback”;</li>
+      <li>implement KMP in Python or Java and justify its <code>O(n + m)</code> time and <code>O(m)</code> space;</li>
+      <li>reuse the LPS idea to solve new problems.</li>
+    </ol>
+  </div>
+
+  <h3>The lesson in one picture</h3>
+  <p class="prose">Each step builds on the previous one. Click a block to jump to it.</p>
+  <div class="map" id="lessonMap"></div>
+
+  <h3>How to use the interactive panels</h3>
+  <div class="prose">
+    <p>Step through each visualizer with the buttons, or click the board and use <kbd>←</kbd> <kbd>→</kbd>. Change the inputs or pick an example to try your own cases. The highlighted line in the code panel is the line running at that step.</p>
+  </div>
+  <div class="legend" aria-label="Colour legend">
+    <span><i class="chip" style="background:var(--ok);border-color:var(--ok)"></i>comparing: equal</span>
+    <span><i class="chip" style="background:var(--bad);border-color:var(--bad)"></i>comparing: different</span>
+    <span><i class="chip" style="background:var(--ok-soft);border-color:var(--ok)"></i>matched so far</span>
+    <span><i class="chip" style="background:var(--border-soft);border-color:var(--border-c)"></i>border kept after a fallback</span>
+    <span><i class="chip" style="border-style:dashed;border-color:var(--border-c)"></i>next comparison</span>
+    <span><i class="chip" style="box-shadow:inset 0 -4px 0 var(--accent)"></i>part of a found match</span>
+  </div>
+  <p class="prose" style="color:var(--muted);font-size:.92rem"><strong>Notation:</strong> <code>n</code> = length of the text, <code>m</code> = length of the pattern. <strong>You need:</strong> string indexing, loops and basic Big-O.</p>
+
+  <div class="sec-foot"><span></span><button class="btn done-btn" data-done="intro">Mark complete ✓</button></div>
+</section>
+
+<!-- ============================ 1. NAIVE ============================ -->
+<section class="lesson" id="naive">
+  <div class="eyebrow">Step 1 · 5 min</div>
+  <h2>The obvious way, and where it wastes work</h2>
+  <div class="prose">
+    <p>Naive search places the pattern at every start position <code>s</code> and compares character by character, left to right. At the first mismatch it gives up, slides the pattern <strong>one place</strong> right, and starts again from <code>pattern[0]</code>.</p>
+    <p>Step through it below. Watch the <strong>reads</strong> row, which counts how many times each text character has been compared.</p>
+  </div>
+  <div id="vizNaive"></div>
+  <div class="callout warn">
+    <b class="t">What to notice</b>
+    <p>Pick <em>“Naive's nightmare”</em>. After matching <code>AAA</code> and failing on <code>B</code>, naive slides by one and compares those same <code>A</code>s again. In the worst case every one of the <code>n − m + 1</code> positions costs up to <code>m</code> comparisons, so the total is <strong><code>O(n·m)</code></strong>. For a 1,000,000-character text and a 1,000-character pattern, that is about a <em>billion</em> comparisons.</p>
+  </div>
+  <div class="checkpoint-h">Checkpoint</div>
+  <div class="quiz" id="cpNaive"></div>
+  <div class="sec-foot"><span></span><button class="btn done-btn" data-done="naive">Mark complete ✓</button></div>
+</section>
+
+<!-- ============================ 2. INSIGHT ============================ -->
+<section class="lesson" id="insight">
+  <div class="eyebrow">Step 2 · 5 min</div>
+  <h2>The key insight: a mismatch is information</h2>
+  <div class="prose">
+    <p>Suppose we have matched <code>j</code> characters and then hit a mismatch. We now know the last <code>j</code> text characters <strong>exactly</strong>: they are <code>pattern[0..j-1]</code>. So the question “where could the next match start?” can be answered from the <strong>pattern alone</strong>, without looking at the text again.</p>
+  </div>
+
+  <div class="board-wrap" id="insightBoard" aria-label="Diagram: sliding the pattern by its border"></div>
+  <ol class="rules">
+    <li>We matched <code>ABACABA</code> (7 characters), then <code>text[7] = C</code> did not equal <code>pattern[7] = B</code>.</li>
+    <li>Sliding by 1, 2 or 3 cannot work. For the pattern to line up there, a <em>longer</em> prefix of <code>ABACABA</code> would have to equal a suffix of it, and none does.</li>
+    <li><code>ABACABA</code> starts and ends with <code>ABA</code>, so we slide the pattern until its first <code>ABA</code> sits on the text's last <code>ABA</code>. Those 3 characters are already known to match. We continue at <code>text[7]</code> vs <code>pattern[3]</code>, and the text pointer never moved back.</li>
+  </ol>
+
+  <div class="callout aha">
+    <b class="t">Definition: border</b>
+    <p>A <strong>proper prefix</strong> of a string is a prefix that is not the whole string. A <strong>border</strong> is a string that is both a proper prefix <em>and</em> a suffix. <code>ABACABA</code> has borders <code>A</code> and <code>ABA</code>. Its longest border, <code>ABA</code> (length 3), gives the <strong>smallest slide that could still produce a match</strong>. A smaller slide is impossible, and a bigger one might skip a match.</p>
+  </div>
+
+  <h3>Try it: border explorer</h3>
+  <p class="prose">Type any string. The table compares every proper prefix with the suffix of the same length.</p>
+  <div class="controls-row">
+    <label class="f" style="flex:1;max-width:340px">String<input type="text" id="borderIn" value="ABACABA" maxlength="16" spellcheck="false" autocomplete="off"></label>
+  </div>
+  <div id="borderOut"></div>
+
+  <div class="checkpoint-h">Checkpoint</div>
+  <div class="quiz" id="cpInsight"></div>
+  <div class="sec-foot"><span></span><button class="btn done-btn" data-done="insight">Mark complete ✓</button></div>
+</section>
+
+<!-- ============================ 3. LPS ============================ -->
+<section class="lesson" id="lps">
+  <div class="eyebrow">Step 3 · 8 min</div>
+  <h2>Precompute every border: the LPS table</h2>
+  <div class="prose">
+    <p>A mismatch can happen after <em>any</em> number of matched characters, so we store the longest border of <strong>every prefix</strong> of the pattern:</p>
+  </div>
+  <div class="callout">
+    <b class="t"><code>lps[i]</code> = length of the Longest proper Prefix of <code>pattern[0..i]</code> that is also a Suffix of it.</b>
+    <p>Example for <code>ABABAC</code>: prefix <code>ABABA</code> has longest border <code>ABA</code>, so <code>lps[4] = 3</code>. The full table is <code>[0, 0, 1, 2, 3, 0]</code>.</p>
+  </div>
+  <div class="prose">
+    <p>Checking every prefix against every suffix would be slow. Instead, the pattern <strong>searches itself</strong>. We keep <code>length</code>, the border we are trying to extend, and look at <code>pattern[i]</code>:</p>
+  </div>
+  <ol class="rules">
+    <li><strong>Equal</strong> (<code>pattern[i] == pattern[length]</code>): the border grows by one. Set <code>lps[i] = length + 1</code> and move to the next <code>i</code>.</li>
+    <li><strong>Different, and <code>length &gt; 0</code></strong>: try the next-shorter border, <code>length = lps[length − 1]</code>. Don't move <code>i</code>; compare again.</li>
+    <li><strong>Different, and <code>length == 0</code></strong>: no border ends here. Set <code>lps[i] = 0</code> and move on.</li>
+  </ol>
+  <div class="callout aha">
+    <b class="t">Why <code>lps[length − 1]</code> in rule 2?</b>
+    <p>A border of a border is itself a border. The current border is <code>pattern[0..length−1]</code>, and its longest border is <code>lps[length−1]</code>, which is exactly the next-longest border to try. We never search for it; we just read it from the table.</p>
+  </div>
+
+  <div id="vizLps"></div>
+
+  <h3>Activity: fill in the LPS table yourself</h3>
+  <p class="prose">For each index, find the longest border of the prefix ending there. Use the border explorer or the rules above. Aim for 2 patterns correct in a row.</p>
+  <div id="fillLps"></div>
+
+  <div class="sec-foot"><span></span><button class="btn done-btn" data-done="lps">Mark complete ✓</button></div>
+</section>
+
+<!-- ============================ 4. SEARCH ============================ -->
+<section class="lesson" id="search">
+  <div class="eyebrow">Step 4 · 8 min</div>
+  <h2>Searching with the table</h2>
+  <div class="prose">
+    <p>Now scan the text <strong>once</strong>, left to right. <code>i</code> is the text position and <code>j</code> is how many pattern characters currently match. Compare <code>text[i]</code> with <code>pattern[j]</code>:</p>
+  </div>
+  <ol class="rules">
+    <li><strong>Equal</strong>: <code>j += 1</code>, then move to the next text character.</li>
+    <li><strong>Different, and <code>j &gt; 0</code></strong>: <em>fall back</em> with <code>j = lps[j − 1]</code> and compare the <em>same</em> <code>text[i]</code> again. The text never rewinds.</li>
+    <li><strong>Different, and <code>j == 0</code></strong>: nothing to reuse, so move to the next text character.</li>
+    <li><strong><code>j == m</code></strong>: a full match ends at <code>i</code>, starting at <code>i − m + 1</code>. Record it and set <code>j = lps[m − 1]</code> so overlapping matches are still found.</li>
+  </ol>
+  <div id="vizKmp"></div>
+  <div class="callout">
+    <b class="t">Compare with Step 1</b>
+    <p>Load <em>“Naive's nightmare”</em> here: KMP needs <strong>16</strong> comparisons where naive needed <strong>28</strong>, and the gap grows with the input size. Then try <em>“Fallback chain”</em> to watch several fallbacks in a row on one character.</p>
+  </div>
+  <div class="checkpoint-h">Checkpoint</div>
+  <div class="quiz" id="cpSearch"></div>
+  <div class="sec-foot"><span></span><button class="btn done-btn" data-done="search">Mark complete ✓</button></div>
+</section>
+
+<!-- ============================ 5. CODE ============================ -->
+<section class="lesson" id="code">
+  <div class="eyebrow">Step 5 · 3 min</div>
+  <h2>The complete implementation</h2>
+  <p class="prose">The whole algorithm is about 25 lines. The same code is in <code>code/kmp.py</code> and <code>code/KMP.java</code>, with self-tests that check it against brute force.</p>
+  <div class="tabs" role="tablist">
+    <button role="tab" aria-selected="true" data-tab="py">Python</button>
+    <button role="tab" aria-selected="false" data-tab="java">Java</button>
+  </div>
+  <div class="panel" data-panel="py"><div class="code"><div class="code-title">kmp.py <button class="copy" data-copy="py">Copy</button></div><pre id="codePy"></pre></div></div>
+  <div class="panel" data-panel="java" hidden><div class="code"><div class="code-title">KMP.java <button class="copy" data-copy="java">Copy</button></div><pre id="codeJava"></pre></div></div>
+  <h3>Four lines carry the idea</h3>
+  <table class="t">
+    <tr><th>Line</th><th>Why it is there</th></tr>
+    <tr><td><code>length = lps[length - 1]</code></td><td>When building the table, retry the next-shorter border instead of starting over.</td></tr>
+    <tr><td><code>while j &gt; 0 and ch != pattern[j]</code></td><td>Several fallbacks can happen on one character; keep falling back until it matches or <code>j</code> reaches 0.</td></tr>
+    <tr><td><code>j = lps[j - 1]</code></td><td>Keeps the matched border, so <code>i</code> never moves backward.</td></tr>
+    <tr><td><code>j = lps[j - 1]</code> after a match</td><td>Without it, overlapping matches such as <code>AA</code> in <code>AAAA</code> would be missed.</td></tr>
+  </table>
+  <div class="sec-foot"><span></span><button class="btn done-btn" data-done="code">Mark complete ✓</button></div>
+</section>
+
+<!-- ============================ 6. COMPLEXITY ============================ -->
+<section class="lesson" id="complexity">
+  <div class="eyebrow">Step 6 · 4 min</div>
+  <h2>Why it is O(n + m), even with a loop inside a loop</h2>
+  <div class="prose">
+    <p>The search has a <code>while</code> inside a <code>for</code>, which looks like it could be <code>O(n·m)</code>. It isn't. Think of <code>j</code> as a <strong>bank balance</strong>:</p>
+  </div>
+  <ol class="rules">
+    <li><code>j</code> starts at 0 and never goes below 0.</li>
+    <li>It goes <strong>up by at most 1 per text character</strong> (<code>j += 1</code>), so over the whole run it goes up at most <code>n</code> times.</li>
+    <li>Every fallback makes it <strong>go down by at least 1</strong>, because <code>lps[j−1] &lt; j</code>.</li>
+    <li>You can't take out more than you put in, so there are <strong>at most <code>n</code> fallbacks in total</strong>. Each character has one final comparison, plus its share of those fallbacks: <strong>at most <code>2n</code> comparisons</strong>.</li>
+  </ol>
+  <p class="prose">The same argument with <code>length</code> gives at most <code>2m</code> comparisons for <code>build_lps</code>. Total time is <strong><code>O(n + m)</code></strong> in the worst case, not just on average.</p>
+
+  <h3>See the balance</h3>
+  <p class="prose">This is <code>j</code> after every step of the run in the Step 4 visualizer. It updates when you change that input. Each climb is at most one step at a time; each drop is a fallback.</p>
+  <div id="jTrace"></div>
+
+  <h3>Space</h3>
+  <p class="prose">KMP stores the <code>lps</code> array, so it uses <strong><code>O(m)</code> extra space</strong>, plus the output list. Naive search uses <code>O(1)</code> extra space. KMP spends a little memory to guarantee linear time.</p>
+  <div class="tbl-wrap"><table class="t">
+    <tr><th></th><th>Naive</th><th>KMP</th></tr>
+    <tr><td>Worst-case time</td><td><code>O(n·m)</code></td><td><code>O(n + m)</code></td></tr>
+    <tr><td>Best-case time</td><td><code>O(n)</code></td><td><code>O(n + m)</code></td></tr>
+    <tr><td>Extra space</td><td><code>O(1)</code></td><td><code>O(m)</code></td></tr>
+    <tr><td>Text pointer moves back?</td><td>Yes</td><td>Never (works on streams)</td></tr>
+  </table></div>
+
+  <h3>Experiment: how comparisons grow</h3>
+  <p class="prose">Count real character comparisons for both algorithms as the text grows. In the worst case naive grows with <code>n·m</code>; KMP stays under its <code>2n + 2m</code> bound for every input.</p>
+  <div class="controls-row">
+    <label class="f">Input type<select id="expType">
+      <option value="worst">Worst for naive: AAA…A / AA…AB</option>
+      <option value="ab">Random over {A, B}</option>
+      <option value="az">Random over A–Z</option>
+    </select></label>
+    <label class="f">Max text length n: <output id="expNOut">2000</output><input type="range" id="expN" min="100" max="4000" step="100" value="2000"></label>
+    <label class="f">Pattern length m: <output id="expMOut">30</output><input type="range" id="expM" min="2" max="60" value="30"></label>
+  </div>
+  <div id="expChart"></div>
+  <p class="readout" id="expRead"></p>
+  <div class="sec-foot"><span></span><button class="btn done-btn" data-done="complexity">Mark complete ✓</button></div>
+</section>
+
+<!-- ============================ 7. EDGE CASES ============================ -->
+<section class="lesson" id="edges">
+  <div class="eyebrow">Step 7 · 2 min</div>
+  <h2>Edge cases worth testing</h2>
+  <p class="prose">Click <em>Try it</em> to load a case into the Step 4 visualizer.</p>
+  <div class="cards">
+    <div class="card"><h4>Overlapping matches</h4><p><code>ABABABAB</code> / <code>ABAB</code> → <code>[0, 2, 4]</code>. Setting <code>j = lps[m−1]</code> after a match (not 0) is what finds 2 and 4.</p><button class="btn" data-try="ABABABAB|ABAB">Try it</button></div>
+    <div class="card"><h4>Pattern longer than text</h4><p><code>ABC</code> / <code>ABCD</code>: <code>j</code> can never reach <code>m</code>, so the result is <code>[]</code> with no special case needed.</p><button class="btn" data-try="ABC|ABCD">Try it</button></div>
+    <div class="card"><h4>All characters equal</h4><p><code>AAAAAA</code> / <code>AAA</code>: <code>lps = [0,1,2]</code>, and it matches at every index 0–3.</p><button class="btn" data-try="AAAAAA|AAA">Try it</button></div>
+    <div class="card"><h4>Pattern equals text</h4><p><code>KMP</code> / <code>KMP</code> → <code>[0]</code>. The match is found at the last character.</p><button class="btn" data-try="KMP|KMP">Try it</button></div>
+    <div class="card"><h4>Empty pattern</h4><p>The empty string occurs at every position, so our code returns <code>[0, 1, …, n]</code>, which agrees with Python's <code>"abc".find("") == 0</code>. Libraries differ here, so decide the rule explicitly. (The visualizer requires a non-empty pattern.)</p></div>
+    <div class="card"><h4>Case and alphabet</h4><p>Comparisons are exact: <code>a ≠ A</code>. Normalise case first if needed. KMP never depends on alphabet size, so it works the same for DNA, bytes or Unicode.</p><button class="btn" data-try="Abracadabra|abra">Try it</button></div>
+  </div>
+  <div class="sec-foot"><span></span><button class="btn done-btn" data-done="edges">Mark complete ✓</button></div>
+</section>
+
+<!-- ============================ 8. PRACTICE ============================ -->
+<section class="lesson" id="practice">
+  <div class="eyebrow">Step 8 · 7 min</div>
+  <h2>Check your understanding</h2>
+  <p class="prose">Seven questions (about 3 min). Each answer comes with an explanation, so wrong answers teach too.</p>
+  <div class="quiz" id="finalQuiz"></div>
+
+  <h3>Coding challenge (about 4 min, plus stretch goals)</h3>
+  <div class="prose">
+    <p>The LPS table is useful beyond searching. Pick <strong>one</strong> challenge. <code>build_lps</code> and <code>kmp_search</code> are already defined for you. <em>Run tests</em> executes real Python in your browser (the first run downloads the Python runtime, which needs internet). Offline, use <code>python code/challenges.py</code> instead.</p>
+  </div>
+  <div class="tabs" role="tablist" id="chTabs"></div>
+  <div id="chPanels"></div>
+
+  <h3>Cheat sheet</h3>
+  <div class="sheet">
+    <div><b>Idea</b>After a mismatch, the matched text equals a known prefix of the pattern, so reuse its longest border.</div>
+    <div><b>LPS</b><code>lps[i]</code> = longest proper prefix of <code>p[0..i]</code> that is also a suffix. Built in <code>O(m)</code>.</div>
+    <div><b>Search</b>Match: <code>j++</code>. Mismatch: <code>j = lps[j−1]</code>. Found: record, then <code>j = lps[m−1]</code>.</div>
+    <div><b>Cost</b><code>O(n + m)</code> time, at most <code>2n + 2m</code> comparisons. <code>O(m)</code> space. The text pointer never goes back.</div>
+  </div>
+  <p class="prose"><strong>Where next:</strong> the Z-algorithm (another linear-time matcher), Rabin–Karp (hashing), Aho–Corasick (KMP for many patterns at once). Practice: LeetCode 28, 459, 214 and 1392 (“Longest Happy Prefix” is just <code>lps[-1]</code>).</p>
+  <div class="sec-foot"><span></span><button class="btn done-btn" data-done="practice">Mark complete ✓</button></div>
+</section>
+
+  </main>
+</div>
+
+<script>
+"use strict";
+/* =====================================================================
+   Helpers
+   ===================================================================== */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const vis = ch => ch === " " ? "␣" : ch;
+const fmt = x => Number(x).toLocaleString("en-US");
+
+/* Reference algorithms (mirror code/kmp.py exactly) */
+function buildLps(p) {
+  const lps = new Array(p.length).fill(0);
+  let len = 0, i = 1;
+  while (i < p.length) {
+    if (p[i] === p[len]) { lps[i++] = ++len; }
+    else if (len > 0) { len = lps[len - 1]; }
+    else { lps[i++] = 0; }
+  }
+  return lps;
+}
+function kmpSearch(t, p) {
+  if (!p.length) return Array.from({length: t.length + 1}, (_, k) => k);
+  const lps = buildLps(p), out = []; let j = 0;
+  for (let i = 0; i < t.length; i++) {
+    while (j > 0 && t[i] !== p[j]) j = lps[j - 1];
+    if (t[i] === p[j]) j++;
+    if (j === p.length) { out.push(i - j + 1); j = lps[j - 1]; }
+  }
+  return out;
+}
+/* Comparison counters used by the experiment chart */
+function countNaive(t, p) {
+  let c = 0;
+  for (let s = 0; s + p.length <= t.length; s++) {
+    let k = 0;
+    while (k < p.length) { c++; if (t[s + k] !== p[k]) break; k++; }
+  }
+  return c;
+}
+function countLps(p) {
+  let c = 0, len = 0, i = 1; const lps = new Array(p.length).fill(0);
+  while (i < p.length) {
+    c++;
+    if (p[i] === p[len]) lps[i++] = ++len;
+    else if (len > 0) len = lps[len - 1];
+    else lps[i++] = 0;
+  }
+  return c;
+}
+function countKmp(t, p) {
+  const lps = buildLps(p); let c = 0, j = 0;
+  for (let i = 0; i < t.length; i++) {
+    for (;;) {
+      c++;
+      if (t[i] === p[j]) { j++; break; }
+      if (j > 0) { j = lps[j - 1]; continue; }
+      break;
+    }
+    if (j === p.length) j = lps[j - 1];
+  }
+  return c;
+}
+
+/* Tiny syntax highlighter for Python / Java */
+const KW = {
+  py: "def|return|for|in|while|if|elif|else|and|not|or|import|from|class|True|False|None|pass",
+  java: "public|static|class|int|char|void|new|return|for|while|if|else|import|String|List|ArrayList|boolean|final|throw"
+};
+const BI = { py: "len|range|enumerate|list|print", java: "length|charAt|add|isEmpty|size|println" };
+function hl(line, lang) {
+  const mark = lang === "py" ? "#" : "//";
+  let code = line, com = "";
+  const k = line.indexOf(mark);
+  if (k >= 0) { code = line.slice(0, k); com = line.slice(k); }
+  let h = esc(code)
+    .replace(/(&quot;.*?&quot;|&#39;.*?&#39;)/g, '<span class="str">$1</span>')
+    .replace(new RegExp(`\\b(${KW[lang]})\\b`, "g"), '<b class="kw">$1</b>')
+    .replace(new RegExp(`\\b(${BI[lang]})\\b`, "g"), '<b class="bi">$1</b>')
+    .replace(/\b(\d+)\b/g, '<b class="num">$1</b>');
+  return h + (com ? `<span class="com">${esc(com)}</span>` : "");
+}
+const codeLines = (src, lang) => src.split("\n").map((l, i) =>
+  `<span class="ln" data-l="${i + 1}"><i>${i + 1}</i>${hl(l, lang) || " "}</span>`).join("");
+
+/* =====================================================================
+   Source code shown in the lesson
+   ===================================================================== */
+const PY_NAIVE = `def naive_search(text, pattern):
+    n, m = len(text), len(pattern)
+    matches = []
+    for s in range(n - m + 1):          # every start position
+        k = 0
+        while k < m and text[s + k] == pattern[k]:
+            k += 1
+        if k == m:
+            matches.append(s)
+    return matches`;
+
+const PY_LPS = `def build_lps(pattern):
+    lps = [0] * len(pattern)
+    length, i = 0, 1      # length = border being extended
+    while i < len(pattern):
+        if pattern[i] == pattern[length]:
+            length += 1
+            lps[i] = length
+            i += 1
+        elif length > 0:
+            length = lps[length - 1]  # next-shorter border
+        else:
+            lps[i] = 0
+            i += 1
+    return lps`;
+
+const PY_SEARCH = `def kmp_search(text, pattern):
+    if not pattern:
+        return list(range(len(text) + 1))
+    lps = build_lps(pattern)
+    matches, j = [], 0      # j = pattern chars matched
+    for i, ch in enumerate(text):
+        while j > 0 and ch != pattern[j]:
+            j = lps[j - 1]        # fall back, i stays
+        if ch == pattern[j]:
+            j += 1
+        if j == len(pattern):
+            matches.append(i - j + 1)
+            j = lps[j - 1]        # allow overlaps
+    return matches`;
+
+const PY_FULL = `"""Knuth-Morris-Pratt pattern matching. O(n + m) time, O(m) space."""
+
+
+${PY_LPS.replace("def build_lps(pattern):", `def build_lps(pattern):
+    """lps[i] = length of the longest proper prefix of pattern[:i+1]
+    that is also a suffix of it."""`)}
+
+
+${PY_SEARCH.replace("def kmp_search(text, pattern):", `def kmp_search(text, pattern):
+    """Return every start index of pattern in text (overlaps included)."""`)}
+
+
+if __name__ == "__main__":
+    print(build_lps("ABABAC"))                    # [0, 0, 1, 2, 3, 0]
+    print(kmp_search("GATGATGACGATGATGAC", "GATGAC"))  # [3, 12]`;
+
+const JAVA_FULL = `import java.util.ArrayList;
+import java.util.List;
+
+public class KMP {
+
+    // lps[i] = longest proper prefix of pattern[0..i] that is also a suffix
+    static int[] buildLps(String pattern) {
+        int m = pattern.length();
+        int[] lps = new int[m];
+        int length = 0, i = 1;
+        while (i < m) {
+            if (pattern.charAt(i) == pattern.charAt(length)) {
+                length++;
+                lps[i] = length;
+                i++;
+            } else if (length > 0) {
+                length = lps[length - 1];   // next-shorter border
+            } else {
+                lps[i] = 0;
+                i++;
+            }
+        }
+        return lps;
+    }
+
+    // Every start index of pattern in text (overlaps included)
+    static List<Integer> search(String text, String pattern) {
+        List<Integer> matches = new ArrayList<>();
+        if (pattern.isEmpty()) {
+            for (int k = 0; k <= text.length(); k++) matches.add(k);
+            return matches;
+        }
+        int[] lps = buildLps(pattern);
+        int j = 0;                          // pattern chars matched
+        for (int i = 0; i < text.length(); i++) {
+            char ch = text.charAt(i);
+            while (j > 0 && ch != pattern.charAt(j)) {
+                j = lps[j - 1];             // fall back, i stays
+            }
+            if (ch == pattern.charAt(j)) {
+                j++;
+            }
+            if (j == pattern.length()) {
+                matches.add(i - j + 1);
+                j = lps[j - 1];             // allow overlaps
+            }
+        }
+        return matches;
+    }
+
+    public static void main(String[] args) {
+        System.out.println(java.util.Arrays.toString(buildLps("ABABAC")));
+        System.out.println(search("GATGATGACGATGATGAC", "GATGAC")); // [3, 12]
+    }
+}`;
+
+/* =====================================================================
+   Generic board renderer
+   rows: [{label, kind, cells: {col: {t, c}}}]
+   ===================================================================== */
+function board(width, rows) {
+  let h = `<div class="board" style="--cols:${width}">`;
+  for (const r of rows) {
+    h += `<div class="brow ${r.kind || ""}"><div class="blabel">${r.label || ""}</div><div class="bcells">`;
+    for (let c = 0; c < width; c++) {
+      const x = r.cells[c];
+      h += x ? `<div class="cell ${x.c || ""}">${esc(x.t)}</div>` : `<div class="cell empty"></div>`;
+    }
+    h += `</div></div>`;
+  }
+  return h + `</div>`;
+}
+const strCells = (s, off, cls = () => "") => {
+  const o = {}; for (let k = 0; k < s.length; k++) o[off + k] = {t: vis(s[k]), c: cls(k)}; return o;
+};
+const arrCells = (a, off, cls = () => "") => {
+  const o = {}; a.forEach((v, k) => o[off + k] = {t: v === null ? "·" : v, c: cls(k)}); return o;
+};
+const idxCells = n => { const o = {}; for (let k = 0; k < n; k++) o[k] = {t: k}; return o; };
+const readCells = reads => { const o = {}; reads.forEach((r, k) => o[k] = {t: r || "·", c: r >= 3 ? "r3" : r === 2 ? "r2" : r === 1 ? "r1" : "dim"}); return o; };
+const stat = (label, val, extra = "", full = false) => `<div class="stat${full ? " full" : ""}"><span>${label}</span><b>${val}</b>${extra}</div>`;
+
+/* =====================================================================
+   Step-through visualizer component
+   ===================================================================== */
+let vizCount = 0;
+function createViz(host, cfg) {
+  const id = "v" + (++vizCount);
+  host.innerHTML = `
+  <div class="viz">
+    <div class="viz-main">
+      <div class="viz-inputs">
+        ${cfg.inputs.map(f => `<label class="f ${f.wide ? "wide" : ""}">${f.label}<input type="text" data-k="${f.key}" maxlength="${f.max}" value="${esc(f.value)}" spellcheck="false" autocomplete="off"></label>`).join("")}
+        <label class="f">Example<select class="preset"><option value="">Custom…</option>${cfg.presets.map((p, i) => `<option value="${i}">${esc(p.name)}</option>`).join("")}</select></label>
+        <button class="btn primary run">Load</button>
+      </div>
+      <div class="board-wrap" tabindex="0" role="img" aria-label="${esc(cfg.title)} visualization. Use left and right arrow keys to step."></div>
+      <div class="viz-msg" aria-live="polite"></div>
+      <div class="viz-controls">
+        <button class="btn icon first" aria-label="First step" title="First step">⏮</button>
+        <button class="btn icon prev" aria-label="Previous step" title="Previous (←)">◀</button>
+        <button class="btn play" aria-label="Play">▶ Play</button>
+        <button class="btn icon next" aria-label="Next step" title="Next (→)">▶</button>
+        <button class="btn icon last" aria-label="Last step" title="Last step">⏭</button>
+        <span class="stepno" aria-live="off"></span>
+        <label class="speed">Speed <input type="range" min="1" max="10" value="5" aria-label="Playback speed"></label>
+      </div>
+    </div>
+    <aside class="viz-side">
+      <div class="stats"></div>
+      <div class="code"><div class="code-title">${esc(cfg.codeTitle)}</div><pre>${codeLines(cfg.code, "py")}</pre></div>
+    </aside>
+  </div>`;
+  const q = s => host.querySelector(s);
+  const inputs = $$("input[data-k]", host);
+  const sel = q(".preset"), wrap = q(".board-wrap"), msg = q(".viz-msg"), stats = q(".stats"),
+        stepno = q(".stepno"), playBtn = q(".play"), speed = q(".speed input"), lines = $$(".ln", host);
+  let steps = [], idx = 0, timer = null, vals = {}, width = 0;
+
+  const values = () => { const v = {}; inputs.forEach(x => v[x.dataset.k] = x.value); return v; };
+  function load(v, presetIdx) {
+    stop();
+    if (v) inputs.forEach(x => { if (v[x.dataset.k] !== undefined) x.value = v[x.dataset.k]; });
+    sel.value = presetIdx !== undefined ? String(presetIdx) : "";
+    vals = values();
+    const err = cfg.validate(vals);
+    if (err) {
+      steps = []; wrap.innerHTML = ""; stats.innerHTML = ""; stepno.textContent = "";
+      msg.innerHTML = `<span class="err">${esc(err)}</span>`;
+      $$(".viz-controls .btn", host).forEach(b => b.disabled = true);
+      return;
+    }
+    $$(".viz-controls .btn", host).forEach(b => b.disabled = false);
+    steps = cfg.build(vals);
+    width = cfg.width(vals, steps);
+    idx = 0; show();
+    if (cfg.onLoad) cfg.onLoad(vals, steps);
+  }
+  function show() {
+    const st = steps[idx]; if (!st) return;
+    const r = cfg.render(st, vals, width);
+    wrap.innerHTML = r.board; msg.innerHTML = st.msg; stats.innerHTML = r.stats;
+    lines.forEach(el => el.classList.toggle("on", (st.lines || []).includes(+el.dataset.l)));
+    stepno.textContent = `${idx + 1} / ${steps.length}`;
+    q(".first").disabled = q(".prev").disabled = idx === 0;
+    q(".next").disabled = q(".last").disabled = idx === steps.length - 1;
+    const f = wrap.querySelector(".focus");
+    if (f) {
+      const wr = wrap.getBoundingClientRect(), fr = f.getBoundingClientRect();
+      if (fr.left < wr.left + 70 || fr.right > wr.right - 30) wrap.scrollLeft += fr.left - wr.left - wr.width / 2;
+    }
+  }
+  const go = k => { idx = Math.max(0, Math.min(steps.length - 1, k)); show(); };
+  const delay = () => 2200 - speed.value * 200;
+  function stop() { clearInterval(timer); timer = null; playBtn.textContent = "▶ Play"; playBtn.setAttribute("aria-label", "Play"); }
+  function start() {
+    clearInterval(timer);
+    timer = setInterval(() => { if (idx >= steps.length - 1) { stop(); return; } go(idx + 1); }, delay());
+    playBtn.textContent = "❚❚ Pause"; playBtn.setAttribute("aria-label", "Pause");
+  }
+  playBtn.onclick = () => { if (timer) { stop(); return; } if (idx >= steps.length - 1) go(0); start(); };
+  speed.oninput = () => { if (timer) start(); };
+  q(".first").onclick = () => { stop(); go(0); };
+  q(".prev").onclick = () => { stop(); go(idx - 1); };
+  q(".next").onclick = () => { stop(); go(idx + 1); };
+  q(".last").onclick = () => { stop(); go(steps.length - 1); };
+  q(".run").onclick = () => load();
+  inputs.forEach(x => x.addEventListener("keydown", e => { if (e.key === "Enter") load(); }));
+  inputs.forEach(x => x.addEventListener("input", () => { sel.value = ""; }));
+  sel.onchange = () => { if (sel.value !== "") { const p = cfg.presets[+sel.value]; load(p, +sel.value); } };
+  wrap.addEventListener("keydown", e => {
+    if (e.key === "ArrowRight") { e.preventDefault(); stop(); go(idx + 1); }
+    if (e.key === "ArrowLeft") { e.preventDefault(); stop(); go(idx - 1); }
+    if (e.key === " ") { e.preventDefault(); playBtn.click(); }
+  });
+  const ini = cfg.initial ?? 0;
+  load(cfg.presets[ini], ini);
+  return { load, values: () => vals, steps: () => steps, el: host };
+}
+
+/* =====================================================================
+   Shared examples
+   ===================================================================== */
+const PRESETS = [
+  {name: "DNA scan",                 text: "GATGATGACGATGATGAC", pattern: "GATGAC"},
+  {name: "Naive's nightmare",        text: "AAAAAAAAAB",         pattern: "AAAB"},
+  {name: "Fallback chain",           text: "AABAACAABAAB",       pattern: "AABAAB"},
+  {name: "Overlapping matches",      text: "ABABABAB",           pattern: "ABAB"},
+  {name: "No match",                 text: "HELLO WORLD",        pattern: "WORD"},
+  {name: "Pattern longer than text", text: "ABC",                pattern: "ABCD"},
+];
+const validateTP = v => {
+  if (!v.pattern) return "Enter a non-empty pattern (the empty-pattern case is discussed in Step 7).";
+  if (!v.text) return "Enter some text to search.";
+  return null;
+};
+const TEXT_IN = {key: "text", label: "Text", value: "", max: 32, wide: true};
+const PAT_IN = {key: "pattern", label: "Pattern", value: "", max: 12};
+
+/* =====================================================================
+   1. Naive visualizer
+   ===================================================================== */
+function naiveSteps({text: t, pattern: p}) {
+  const n = t.length, m = p.length, steps = [], reads = new Array(n).fill(0), found = [];
+  let comps = 0;
+  const snap = o => steps.push({...o, reads: [...reads], found: [...found], comps});
+  snap({kind: "init", s: 0, k: -1, off: 0, lines: [2, 3],
+    msg: m > n ? `The pattern (${m}) is longer than the text (${n}), so no start position fits. Nothing to do.`
+               : `Try every start position <code>s = 0 … ${n - m}</code>. At each one, compare left to right.`});
+  for (let s = 0; s <= n - m; s++) {
+    let k = 0;
+    while (k < m) {
+      comps++; reads[s + k]++;
+      const eq = t[s + k] === p[k];
+      snap({kind: eq ? "eq" : "ne", s, k, off: s, lines: eq ? [6, 7] : [6],
+        msg: eq ? `s = ${s}: <code>text[${s + k}] '${esc(t[s + k])}'</code> = <code>pattern[${k}] '${esc(p[k])}'</code> ✓ keep going.`
+                : `s = ${s}: <code>text[${s + k}] '${esc(t[s + k])}'</code> ≠ <code>pattern[${k}] '${esc(p[k])}'</code> ✗ Slide one place right and restart at <code>pattern[0]</code>.` +
+                  (k > 0 ? ` <strong>The ${k} character${k > 1 ? "s" : ""} just matched will be read again.</strong>` : "")});
+      if (!eq) break;
+      k++;
+    }
+    if (k === m) { found.push(s); snap({kind: "found", s, k: m, off: s, lines: [8, 9], msg: `Full match at <strong>s = ${s}</strong>. Record it and slide by one.`}); }
+  }
+  snap({kind: "done", s: 0, k: -1, off: 0, lines: [10],
+    msg: `Done: <strong>${comps}</strong> character comparisons, matches at <code>[${found.join(", ")}]</code>. Look at the <em>reads</em> row: some characters were compared many times.`});
+  return steps;
+}
+function naiveRender(st, v, W) {
+  const t = v.text, p = v.pattern, m = p.length;
+  const cmp = st.kind === "eq" || st.kind === "ne";
+  const hit = c => st.found.some(f => c >= f && c < f + m);
+  const tCls = c => {
+    const k = []; if (hit(c)) k.push("hit");
+    if (cmp) { if (c === st.s + st.k) k.push(st.kind === "eq" ? "cmp-eq focus" : "cmp-ne focus"); else if (c >= st.s && c < st.s + st.k) k.push("ok-soft"); }
+    if (st.kind === "found" && c >= st.s && c < st.s + m) k.push("cmp-eq" + (c === st.s + m - 1 ? " focus" : ""));
+    return k.join(" ");
+  };
+  const pCls = q => cmp ? (q < st.k ? "ok-soft" : q === st.k ? (st.kind === "eq" ? "cmp-eq" : "cmp-ne") : "") : st.kind === "found" ? "cmp-eq" : "";
+  const rows = [{kind: "idx", cells: idxCells(t.length)}, {label: "text", cells: strCells(t, 0, tCls)}];
+  if (st.kind !== "done") {
+    rows.push({label: "pattern", cells: strCells(p, st.off, pCls)});
+    const pc = cmp ? st.s + st.k : st.kind === "found" ? st.s + m - 1 : -1;
+    rows.push({kind: "ptr", cells: pc >= 0 ? {[pc]: {t: "▲"}} : {}});
+  }
+  rows.push({kind: "small", label: "reads", cells: readCells(st.reads)});
+  return {
+    board: board(W, rows),
+    stats: stat("start s", st.kind === "done" || st.kind === "init" ? "–" : st.s) +
+           stat("k", cmp ? st.k : "–") +
+           stat("comparisons", fmt(st.comps), "", true) +
+           stat("matches", st.found.length ? `[${st.found.join(", ")}]` : "none yet", "", true)
+  };
+}
+const vizNaive = createViz($("#vizNaive"), {
+  title: "Naive search", codeTitle: "naive_search · Python", code: PY_NAIVE,
+  inputs: [TEXT_IN, PAT_IN], presets: PRESETS, initial: 0, validate: validateTP,
+  build: naiveSteps, render: naiveRender,
+  width: v => Math.max(v.text.length, v.pattern.length)
+});
+
+/* =====================================================================
+   2. Insight diagram + border explorer
+   ===================================================================== */
+(function insight() {
+  const t = "ABACABACABAB", p = "ABACABAB";
+  const rows = [
+    {kind: "idx", cells: idxCells(t.length)},
+    {label: "text", cells: strCells(t, 0, c => c === 7 ? "cmp-ne" : c >= 4 && c <= 6 ? "border" : c < 4 ? "ok-soft" : "")},
+    {label: "before", cells: strCells(p, 0, k => k < 4 ? "ok-soft" : k < 7 ? "border" : k === 7 ? "cmp-ne" : "")},
+    {label: "naive", cells: strCells(p, 1, () => "ghost")},
+    {label: "KMP", cells: strCells(p, 4, k => k < 3 ? "border" : k === 3 ? "next" : "")},
+  ];
+  $("#insightBoard").innerHTML = board(t.length, rows) +
+    `<p style="margin:10px 0 0;font-size:.85rem;color:var(--muted)">“before”: the failed attempt. “naive”: slides 1 and re-checks everything. “KMP”: jumps 4 places, so the purple <code>ABA</code> is already known to match and the next comparison is the dashed cell.</p>`;
+})();
+
+function renderBorders() {
+  const s = $("#borderIn").value, L = s.length, out = $("#borderOut");
+  if (L < 2) { out.innerHTML = `<p class="feedback">Type at least 2 characters. A single character has no proper prefix, so its longest border is 0.</p>`; return; }
+  let best = 0, rows = "";
+  for (let k = 1; k < L; k++) {
+    const pre = s.slice(0, k), suf = s.slice(L - k), ok = pre === suf;
+    if (ok) best = k;
+    rows += `<tr class="${ok ? "yes" : ""}"><td>${k}</td><td><code>${esc(pre)}</code></td><td><code>${esc(suf)}</code></td><td>${ok ? "✓ border" : "✗"}</td></tr>`;
+  }
+  const W = L;
+  const bd = board(W, [
+    {kind: "idx", cells: idxCells(L)},
+    {label: "prefix", cells: best ? strCells(s.slice(0, best), 0, () => "border") : {}},
+    {label: "string", cells: strCells(s, 0, c => (c < best || c >= L - best) && best ? "border" : "")},
+    {label: "suffix", cells: best ? strCells(s.slice(L - best), L - best, () => "border") : {}},
+  ]);
+  out.innerHTML = `<div class="board-wrap">${bd}</div>
+    <p class="feedback">Longest proper border: ${best ? `<strong><code>${esc(s.slice(0, best))}</code></strong> (length ${best})` : "<strong>none</strong> (length 0)"}${best * 2 > L ? ". Note that the prefix and suffix <em>overlap</em>, which is allowed." : ""}</p>
+    <div class="tbl-wrap"><table class="t"><tr><th>Length</th><th>Prefix</th><th>Suffix</th><th>Equal?</th></tr>${rows}</table></div>`;
+}
+$("#borderIn").addEventListener("input", renderBorders);
+renderBorders();
+
+/* =====================================================================
+   3. LPS visualizer
+   ===================================================================== */
+function lpsSteps({pattern: p}) {
+  const m = p.length, lps = new Array(m).fill(null), steps = [];
+  let comps = 0, len = 0, i = 1;
+  lps[0] = 0;
+  const snap = o => steps.push({...o, lps: [...lps], comps});
+  snap({kind: "init", i: 1, k: 0, len: 0, set: 0, lines: [2, 3],
+    msg: `<code>lps[0] = 0</code> always: one character has no proper prefix. Start with <code>i = 1</code>, <code>length = 0</code>.`});
+  while (i < m) {
+    comps++;
+    if (p[i] === p[len]) {
+      const k = len; len++; lps[i] = len;
+      snap({kind: "eq", i, k, len, set: i, lines: [5, 6, 7, 8],
+        msg: `<code>pattern[${i}] '${esc(p[i])}'</code> = <code>pattern[${k}] '${esc(p[k])}'</code> ✓ The border grows to <code>"${esc(p.slice(0, len))}"</code>, so <strong><code>lps[${i}] = ${len}</code></strong>.`});
+      i++;
+    } else if (len > 0) {
+      const k = len;
+      snap({kind: "ne", i, k, len: k, lines: [5],
+        msg: `<code>pattern[${i}] '${esc(p[i])}'</code> ≠ <code>pattern[${k}] '${esc(p[k])}'</code> ✗ The border <code>"${esc(p.slice(0, k))}"</code> can't be extended.`});
+      const nl = lps[k - 1];
+      snap({kind: "fb", i, k: nl, len: nl, hl: k - 1, lines: [9, 10],
+        msg: `Fall back: <code>length = lps[${k - 1}] = ${nl}</code>. ` + (nl ? `<code>"${esc(p.slice(0, nl))}"</code> is the next-longest border; try to extend that instead. <code>i</code> stays at ${i}.` : `No shorter border exists, so compare with <code>pattern[0]</code> next.`)});
+      len = nl;
+    } else {
+      lps[i] = 0;
+      snap({kind: "zero", i, k: 0, len: 0, set: i, lines: [5, 11, 12, 13],
+        msg: `<code>pattern[${i}] '${esc(p[i])}'</code> ≠ <code>pattern[0] '${esc(p[0])}'</code> and <code>length</code> is 0, so no border ends here: <strong><code>lps[${i}] = 0</code></strong>.`});
+      i++;
+    }
+  }
+  snap({kind: "done", i: -1, k: 0, len, lines: [14],
+    msg: `Done: <code>lps = [${lps.join(", ")}]</code> in <strong>${comps}</strong> comparisons (always ≤ 2m = ${2 * m}).`});
+  return steps;
+}
+function lpsRender(st, v, W) {
+  const p = v.pattern, m = p.length;
+  const cmp = ["eq", "ne", "zero"].includes(st.kind);
+  const cc = st.kind === "eq" ? "cmp-eq" : "cmp-ne";
+  const top = c => {
+    if (st.kind === "done") return "";
+    if (st.kind === "init") return c === 0 ? "border" : "";
+    if (cmp) return c === st.i ? cc + " focus" : c >= st.i - st.k && c < st.i ? "ok-soft" : c > st.i ? "ghost" : "";
+    return c >= st.i - st.k && c < st.i ? "border" : c === st.i ? "next focus" : c > st.i ? "ghost" : "";
+  };
+  const rows = [{kind: "idx", cells: idxCells(m)}, {label: "pattern", cells: strCells(p, 0, top)}];
+  if (st.kind !== "done") {
+    const off = st.i - st.k, pre = {};
+    for (let q = 0; off + q < m; q++) {
+      let c = "ghost";
+      if (cmp) c = q < st.k ? "ok-soft" : q === st.k ? cc : "ghost";
+      else c = q < st.k ? "border" : q === st.k ? "next" : "ghost";
+      pre[off + q] = {t: vis(p[q]), c};
+    }
+    rows.push({label: "prefix", cells: pre});
+    rows.push({kind: "ptr", cells: {[st.i]: {t: "▲"}}});
+  }
+  rows.push({kind: "small", label: "lps", cells: arrCells(st.lps, 0, k => k === st.set ? "new" : k === st.hl ? "lpsh" : "")});
+  return {
+    board: board(W, rows),
+    stats: stat("i", st.kind === "done" ? "–" : st.i) + stat("length", st.len) +
+           stat("comparisons", st.comps, `<div class="meter"><i style="width:${Math.min(100, st.comps / Math.max(1, 2 * m) * 100)}%"></i></div>`, true) +
+           stat("lps so far", `[${st.lps.map(x => x === null ? "·" : x).join(",")}]`, "", true)
+  };
+}
+const vizLps = createViz($("#vizLps"), {
+  title: "LPS table", codeTitle: "build_lps · Python", code: PY_LPS,
+  inputs: [{key: "pattern", label: "Pattern", value: "", max: 16, wide: true}],
+  presets: [
+    {name: "ABACABAB", pattern: "ABACABAB"}, {name: "ABABAC", pattern: "ABABAC"},
+    {name: "AABAACAABAA (long fallbacks)", pattern: "AABAACAABAA"}, {name: "AAAA", pattern: "AAAA"},
+    {name: "ABCDE (no borders)", pattern: "ABCDE"}, {name: "GATGAC", pattern: "GATGAC"}
+  ],
+  validate: v => v.pattern ? null : "Enter a non-empty pattern.",
+  build: lpsSteps, render: lpsRender, width: v => v.pattern.length
+});
+
+/* ---------- Fill-the-LPS activity ---------- */
+(function fillActivity() {
+  const POOL = ["ABABAC", "AAAA", "ABCAB", "ABACABAB", "GATGAC", "AAACAAAA", "ABCDE", "AABAABA", "ABAB", "ABBABBA", "AACAAB"];
+  const host = $("#fillLps");
+  let pat = POOL[0], streak = 0, order = 0;
+  function render() {
+    const m = pat.length;
+    host.innerHTML = `
+      <div class="board-wrap" style="padding:14px">
+        <div class="fill-lab">index</div>
+        <div class="fill-row" style="--cols:${m}">${[...pat].map((_, k) => `<div class="cell" style="border:none;background:none;height:18px;font:11px var(--mono);color:var(--muted)">${k}</div>`).join("")}</div>
+        <div class="fill-lab">pattern</div>
+        <div class="fill-row" style="--cols:${m}">${[...pat].map(ch => `<div class="cell">${esc(ch)}</div>`).join("")}</div>
+        <div class="fill-lab">your lps</div>
+        <div class="fill-row" style="--cols:${m}">${[...pat].map((_, k) => `<input inputmode="numeric" maxlength="2" aria-label="lps[${k}]" ${k === 0 ? 'value="0" readonly title="lps[0] is always 0"' : ""}>`).join("")}</div>
+      </div>
+      <div class="controls-row" style="margin-top:4px">
+        <button class="btn primary chk">Check</button>
+        <button class="btn hintb">Hint</button>
+        <button class="btn rev">Reveal answer</button>
+        <button class="btn nxt">New pattern →</button>
+        <span style="margin-left:auto;font-size:.9rem;color:var(--muted)">Streak: <strong class="stk">${streak}</strong></span>
+      </div>
+      <div class="feedback" aria-live="polite"></div>`;
+    const ins = $$("input", host), fb = $(".feedback", host), ans = buildLps(pat);
+    $(".chk", host).onclick = () => {
+      let right = 0, firstWrong = -1;
+      ins.forEach((x, k) => {
+        const ok = x.value.trim() !== "" && +x.value === ans[k];
+        x.classList.toggle("right", ok); x.classList.toggle("wrong", !ok);
+        if (ok) right++; else if (firstWrong < 0) firstWrong = k;
+      });
+      if (right === m) { streak++; fb.innerHTML = `✅ <strong>All ${m} correct!</strong> ${streak >= 2 ? "That's two in a row. You've got it." : "Try one more."}`; }
+      else { streak = 0; fb.innerHTML = `${right}/${m} correct. Look at index <strong>${firstWrong}</strong>: what is the longest border of <code>"${esc(pat.slice(0, firstWrong + 1))}"</code>?`; }
+      $(".stk", host).textContent = streak;
+    };
+    $(".hintb", host).onclick = () => {
+      const k = ins.findIndex((x, i) => +x.value !== ans[i] || x.value.trim() === "");
+      if (k < 0) { fb.textContent = "Everything looks right. Press Check."; return; }
+      const prev = k > 0 ? ans[k - 1] : 0;
+      fb.innerHTML = `Hint for index ${k}: <code>lps[${k - 1}] = ${prev}</code>, so first ask whether <code>pattern[${k}] '${esc(pat[k])}'</code> equals <code>pattern[${prev}] '${esc(pat[prev])}'</code>. If yes, the answer is ${prev + 1}. If not, fall back with <code>lps[${prev ? prev - 1 : 0}]</code>.`;
+    };
+    $(".rev", host).onclick = () => { ins.forEach((x, k) => { x.value = ans[k]; x.classList.remove("wrong"); x.classList.add("right"); }); streak = 0; $(".stk", host).textContent = 0; fb.innerHTML = `Answer: <code>[${ans.join(", ")}]</code>. Load <code>${esc(pat)}</code> into the visualizer above to see each step.`; };
+    $(".nxt", host).onclick = () => { order = (order + 1) % POOL.length; pat = POOL[order]; render(); $("input:not([readonly])", host)?.focus(); };
+    ins.forEach((x, k) => x.addEventListener("keydown", e => { if (e.key === "Enter") $(".chk", host).click(); }));
+  }
+  render();
+})();
+
+/* =====================================================================
+   4. KMP search visualizer
+   ===================================================================== */
+function kmpSteps({text: t, pattern: p}) {
+  const n = t.length, m = p.length, lps = buildLps(p), steps = [], reads = new Array(n).fill(0), found = [];
+  let comps = 0, j = 0;
+  const snap = o => steps.push({...o, reads: [...reads], found: [...found], comps});
+  snap({kind: "init", i: 0, j: 0, off: 0, lines: [4, 5],
+    msg: `First build <code>lps = [${lps.join(", ")}]</code>. Then scan the text once, left to right. <code>j</code> counts how many pattern characters currently match.`});
+  for (let i = 0; i < n; i++) {
+    for (;;) {
+      comps++; reads[i]++;
+      if (t[i] === p[j]) {
+        snap({kind: "eq", i, j, off: i - j, lines: [9, 10],
+          msg: `<code>text[${i}] '${esc(t[i])}'</code> = <code>pattern[${j}] '${esc(p[j])}'</code> ✓ <code>j</code> becomes ${j + 1}.`});
+        j++; break;
+      }
+      if (j > 0) {
+        snap({kind: "ne", i, j, off: i - j, lines: [7],
+          msg: `<code>text[${i}] '${esc(t[i])}'</code> ≠ <code>pattern[${j}] '${esc(p[j])}'</code> ✗ We had matched ${j} character${j > 1 ? "s" : ""}: <code>"${esc(p.slice(0, j))}"</code>.`});
+        const nj = lps[j - 1];
+        snap({kind: "fb", i, j: nj, off: i - nj, hl: j - 1, lines: [8],
+          msg: `Fall back: <code>j = lps[${j - 1}] = ${nj}</code>. ` + (nj
+            ? `The text already ends with <code>"${esc(p.slice(0, nj))}"</code>, which is how the pattern starts. Slide ${j - nj} places and keep those ${nj} matched.`
+            : `There is no border to reuse, so slide the pattern to start at the current character.`) + ` <strong><code>i</code> stays at ${i}.</strong>`});
+        j = nj; continue;
+      }
+      snap({kind: "zero", i, j: 0, off: i, lines: [9],
+        msg: `<code>text[${i}] '${esc(t[i])}'</code> ≠ <code>pattern[0] '${esc(p[0])}'</code> ✗ Nothing matched and nothing to reuse: move to <code>text[${i + 1}]</code>.`});
+      break;
+    }
+    if (j === m) {
+      const s = i - m + 1; found.push(s);
+      snap({kind: "found", i, j: m, off: s, lines: [11, 12], msg: `All ${m} characters match: occurrence at <strong>index ${s}</strong>. 🎯`});
+      const nj = lps[m - 1];
+      snap({kind: "fb", after: true, i, j: nj, off: i + 1 - nj, hl: m - 1, lines: [13],
+        msg: `Keep searching: <code>j = lps[${m - 1}] = ${nj}</code>` + (nj ? `. The last ${nj} character${nj > 1 ? "s" : ""} <code>"${esc(p.slice(0, nj))}"</code> may start an overlapping match.` : ".")});
+      j = nj;
+    }
+  }
+  const naive = countNaive(t, p);
+  snap({kind: "done", i: n, j, off: 0, lines: [14],
+    msg: `Done: matches at <code>[${found.join(", ")}]</code>. KMP used <strong>${comps}</strong> comparisons (bound 2n = ${2 * n}); naive would use <strong>${naive}</strong> on this input.`});
+  return steps;
+}
+function kmpRender(st, v, W) {
+  const t = v.text, p = v.pattern, m = p.length, n = t.length, lps = buildLps(p);
+  const cmp = ["eq", "ne", "zero"].includes(st.kind);
+  const cc = st.kind === "eq" ? "cmp-eq" : "cmp-ne";
+  const hit = c => st.found.some(f => c >= f && c < f + m);
+  const tCls = c => {
+    const k = []; if (hit(c)) k.push("hit");
+    if (cmp) { if (c === st.i) k.push(cc, "focus"); else if (c >= st.off && c < st.i) k.push("ok-soft"); }
+    else if (st.kind === "fb") { if (c >= st.off && c < st.off + st.j) k.push("border"); }
+    else if (st.kind === "found") { if (c >= st.off && c <= st.i) k.push("cmp-eq"); if (c === st.i) k.push("focus"); }
+    return k.join(" ");
+  };
+  const pCls = q => {
+    if (cmp) return q < st.j ? "ok-soft" : q === st.j ? cc : "";
+    if (st.kind === "fb") return q < st.j ? "border" : q === st.j ? "next" : "";
+    if (st.kind === "found") return "cmp-eq";
+    return "";
+  };
+  const rows = [{kind: "idx", cells: idxCells(n)}, {label: "text", cells: strCells(t, 0, tCls)}];
+  if (st.kind !== "done") {
+    rows.push({label: "pattern", cells: strCells(p, st.off, pCls)});
+    rows.push({kind: "small", label: "lps", cells: arrCells(lps, st.off, k => k === st.hl ? "lpsh" : "dim")});
+    const pc = st.kind === "fb" ? st.off + st.j : st.i;
+    rows.push({kind: "ptr", cells: {[pc]: {t: "▲", c: st.kind === "fb" ? "focus" : ""}}});
+  }
+  rows.push({kind: "small", label: "reads", cells: readCells(st.reads)});
+  return {
+    board: board(W, rows),
+    stats: stat("i (text)", st.kind === "done" ? "–" : st.i) + stat("j (matched)", st.kind === "found" ? m : st.j) +
+      stat("comparisons", `${st.comps} <small style="font-size:.7rem;color:var(--muted)">/ 2n = ${2 * n}</small>`,
+           `<div class="meter"><i style="width:${Math.min(100, st.comps / (2 * n) * 100)}%"></i></div>`, true) +
+      stat("matches", st.found.length ? `[${st.found.join(", ")}]` : "none yet", "", true)
+  };
+}
+const vizKmp = createViz($("#vizKmp"), {
+  title: "KMP search", codeTitle: "kmp_search · Python", code: PY_SEARCH,
+  inputs: [TEXT_IN, PAT_IN], presets: PRESETS, initial: 0, validate: validateTP,
+  build: kmpSteps, render: kmpRender,
+  width: (v, steps) => Math.max(v.text.length, ...steps.map(s => s.kind === "done" ? 0 : s.off + v.pattern.length)),
+  onLoad: (v, steps) => drawJTrace(v, steps)
+});
+
+/* =====================================================================
+   5. Code tabs
+   ===================================================================== */
+$("#codePy").innerHTML = codeLines(PY_FULL, "py");
+$("#codeJava").innerHTML = codeLines(JAVA_FULL, "java");
+function wireTabs(tabBar, scope) {
+  $$("button[role=tab]", tabBar).forEach(b => b.addEventListener("click", () => {
+    $$("button[role=tab]", tabBar).forEach(x => x.setAttribute("aria-selected", x === b));
+    $$(".panel", scope).forEach(pn => pn.hidden = pn.dataset.panel !== b.dataset.tab);
+  }));
+}
+wireTabs($("#code .tabs"), $("#code"));
+$$(".copy").forEach(b => b.onclick = async () => {
+  try { await navigator.clipboard.writeText(b.dataset.copy === "py" ? PY_FULL : JAVA_FULL); b.textContent = "Copied ✓"; }
+  catch { b.textContent = "Select & copy manually"; }
+  setTimeout(() => b.textContent = "Copy", 1600);
+});
+
+/* =====================================================================
+   6. Complexity: j-trace + experiment chart
+   ===================================================================== */
+function lineChart({series, xLabel, yLabel, w = 680, h = 280, stepped = false, xInt = false}) {
+  const L = 62, R = 16, T = 16, B = 42, pw = w - L - R, ph = h - T - B;
+  const xs = series.flatMap(s => s.pts.map(p => p[0])), ys = series.flatMap(s => s.pts.map(p => p[1]));
+  const x0 = Math.min(...xs), x1 = Math.max(...xs, x0 + 1), y1 = Math.max(1, ...ys);
+  const X = x => L + (x - x0) / (x1 - x0) * pw, Y = y => T + ph - y / y1 * ph;
+  let g = "";
+  for (let k = 0; k <= 4; k++) {
+    const yv = y1 * k / 4, yy = Y(yv);
+    g += `<line class="ax" x1="${L}" x2="${w - R}" y1="${yy}" y2="${yy}" stroke-dasharray="${k ? "3 4" : ""}"/><text x="${L - 8}" y="${yy + 4}" text-anchor="end">${fmt(Math.round(yv))}</text>`;
+    const xv = x0 + (x1 - x0) * k / 4;
+    g += `<text x="${X(xv)}" y="${h - B + 18}" text-anchor="middle">${fmt(Math.round(xv))}</text>`;
+  }
+  g += `<text x="${L + pw / 2}" y="${h - 6}" text-anchor="middle">${xLabel}</text>`;
+  g += `<text transform="translate(14 ${T + ph / 2}) rotate(-90)" text-anchor="middle">${yLabel}</text>`;
+  for (const s of series) {
+    let d = "";
+    s.pts.forEach((p, k) => {
+      if (k === 0) d += `M${X(p[0])},${Y(p[1])}`;
+      else if (stepped) d += `H${X(p[0])}V${Y(p[1])}`;
+      else d += `L${X(p[0])},${Y(p[1])}`;
+    });
+    g += `<path d="${d}" fill="none" style="stroke:${s.color}" stroke-width="${s.width || 2.5}" ${s.dash ? `stroke-dasharray="${s.dash}"` : ""} stroke-linejoin="round"/>`;
+    if (s.dots) s.pts.forEach(p => g += `<circle cx="${X(p[0])}" cy="${Y(p[1])}" r="3" style="fill:${s.color}"/>`);
+  }
+  let lg = "", lx = L + 8;
+  for (const s of series) {
+    lg += `<line x1="${lx}" x2="${lx + 18}" y1="${T + 8}" y2="${T + 8}" style="stroke:${s.color}" stroke-width="3" ${s.dash ? `stroke-dasharray="${s.dash}"` : ""}/><text x="${lx + 24}" y="${T + 12}" style="fill:var(--ink)">${s.name}</text>`;
+    lx += 34 + s.name.length * 6.3;
+  }
+  return `<svg class="chart" viewBox="0 0 ${w} ${h}" role="img" aria-label="${esc(yLabel)} versus ${esc(xLabel)}">${g}${lg}</svg>`;
+}
+
+function drawJTrace(v, steps) {
+  const pts = [[0, 0]]; let x = 0, ups = 0, downs = 0;
+  for (const st of steps) {
+    if (st.kind === "eq") { pts.push([++x, st.j + 1]); ups++; }
+    else if (st.kind === "fb") { pts.push([++x, st.j]); downs++; }
+    else if (st.kind === "zero") { pts.push([++x, 0]); }
+  }
+  $("#jTrace").innerHTML = lineChart({
+    series: [{name: "j (characters matched)", color: "var(--accent)", pts}],
+    xLabel: "step of the run", yLabel: "j", stepped: true, h: 220
+  }) + `<p class="readout">Input: <code>${esc(v.text)}</code> / <code>${esc(v.pattern)}</code>. <strong>${ups}</strong> increases of +1 and <strong>${downs}</strong> fallbacks (drops). Fallbacks ≤ increases ≤ n = ${v.text.length}, as the balance argument promised.</p>`;
+}
+/* initial j-trace (viz loaded before this function existed in scope order? no: functions are hoisted) */
+drawJTrace(vizKmp.values(), vizKmp.steps());
+
+function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function drawExperiment() {
+  const type = $("#expType").value, N = +$("#expN").value, m = +$("#expM").value;
+  $("#expNOut").textContent = fmt(N); $("#expMOut").textContent = m;
+  const rand = rng(42), alpha = type === "ab" ? "AB" : "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  const randStr = len => Array.from({length: len}, () => alpha[Math.floor(rand() * alpha.length)]).join("");
+  const pat = type === "worst" ? "A".repeat(m - 1) + "B" : randStr(m);
+  const full = type === "worst" ? "A".repeat(N - 1) + "B" : randStr(N);
+  const naive = [], kmp = [], bound = [];
+  const lpsC = countLps(pat);
+  for (let k = 1; k <= 12; k++) {
+    const n = Math.max(m, Math.round(N * k / 12));
+    const t = type === "worst" ? "A".repeat(n - 1) + "B" : full.slice(0, n);
+    naive.push([n, countNaive(t, pat)]); kmp.push([n, countKmp(t, pat) + lpsC]); bound.push([n, 2 * n + 2 * m]);
+  }
+  $("#expChart").innerHTML = lineChart({
+    series: [
+      {name: "naive", color: "var(--bad)", pts: naive, dots: true},
+      {name: "KMP (lps + search)", color: "var(--ok)", pts: kmp, dots: true},
+      {name: "2n + 2m bound", color: "var(--muted)", pts: bound, dash: "5 5", width: 1.5}
+    ],
+    xLabel: "text length n", yLabel: "character comparisons"
+  });
+  const a = naive.at(-1)[1], b = kmp.at(-1)[1];
+  $("#expRead").innerHTML = `At n = ${fmt(N)}, m = ${m}: naive <strong>${fmt(a)}</strong> vs KMP <strong>${fmt(b)}</strong> comparisons (${(a / b).toFixed(1)}× ${a >= b ? "more" : "fewer"} for naive).` +
+    (type !== "worst" ? ` On random text, mismatches come early, so naive is close to linear too. KMP's advantage is the <em>guarantee</em>.` : ` Try increasing m: naive grows with it, KMP doesn't.`);
+}
+["#expType", "#expN", "#expM"].forEach(s => $(s).addEventListener("input", drawExperiment));
+drawExperiment();
+
+/* =====================================================================
+   7. Edge-case "Try it" buttons
+   ===================================================================== */
+$$("[data-try]").forEach(b => b.onclick = () => {
+  const [text, pattern] = b.dataset.try.split("|");
+  vizKmp.load({text, pattern});
+  $("#vizKmp").scrollIntoView({behavior: "smooth", block: "center"});
+});
+
+/* =====================================================================
+   Quizzes
+   ===================================================================== */
+function mountQuiz(host, qs, numbered = false) {
+  let answered = 0, correct = 0;
+  host.innerHTML = qs.map((q, n) => `
+    <div class="q" data-n="${n}">
+      <p>${numbered ? `<span class="qn">Q${n + 1}.</span>` : ""}${q.q}</p>
+      <div class="opts">${q.o.map((o, k) => `<button class="opt" data-k="${k}">${o}</button>`).join("")}</div>
+      <div class="why" hidden></div>
+    </div>`).join("") + (numbered ? `<div class="controls-row"><span class="score" aria-live="polite"></span><button class="btn retry" hidden>Retry quiz</button></div>` : "");
+  $$(".q", host).forEach(qe => {
+    const q = qs[+qe.dataset.n];
+    $$(".opt", qe).forEach(b => b.onclick = () => {
+      const k = +b.dataset.k, ok = k === q.a;
+      $$(".opt", qe).forEach((x, i) => { x.disabled = true; if (i === q.a) x.classList.add("right"); });
+      if (!ok) b.classList.add("wrong");
+      const w = $(".why", qe); w.hidden = false;
+      w.innerHTML = `${ok ? "✅ <strong>Correct.</strong>" : "❌ <strong>Not quite.</strong>"} ${q.why}`;
+      answered++; if (ok) correct++;
+      if (numbered && answered === qs.length) {
+        $(".score", host).textContent = `Score: ${correct} / ${qs.length}` + (correct === qs.length ? " 🎉" : correct >= 5 ? " (nice!)" : " (review the explanations, then retry)");
+        $(".retry", host).hidden = false;
+      }
+    });
+  });
+  if (numbered) $(".retry", host).onclick = () => mountQuiz(host, qs, true);
+}
+
+mountQuiz($("#cpNaive"), [{
+  q: `Naive search on text <code>AAAAAAAAAB</code> (n = 10) with pattern <code>AAAB</code> (m = 4). How many character comparisons?`,
+  o: ["10", "16", "28", "40"], a: 2,
+  why: `Starts 0–5 each compare <code>A A A</code> then fail on <code>B</code>: 6 × 4 = 24. Start 6 matches fully: 4 more. Total 28. Load “Naive's nightmare” above to check. (16 is what KMP needs; you'll see that in Step 4.)`
+}]);
+mountQuiz($("#cpInsight"), [{
+  q: `What is the length of the longest proper border of <code>AABAA</code>?`,
+  o: ["0", "1", "2", "5"], a: 2,
+  why: `Prefixes: A, AA, AAB, AABA. Suffixes: A, AA, BAA, ABAA. The longest one in both lists is <code>AA</code>, length 2. 5 is the whole string, which is not a <em>proper</em> prefix.`
+}]);
+mountQuiz($("#cpSearch"), [{
+  q: `Pattern <code>GATGAC</code> has <code>lps = [0,0,0,1,2,0]</code>. We've matched <code>GATGA</code> (j = 5) and the next text character isn't <code>C</code>. What is <code>j</code> after one fallback?`,
+  o: ["0", "1", "2", "4"], a: 2,
+  why: `<code>j = lps[j − 1] = lps[4] = 2</code>. The text ends with <code>GA</code>, which is also how the pattern begins, so those 2 characters stay matched.`
+}]);
+
+mountQuiz($("#finalQuiz"), [
+  { q: `What is the LPS table of <code>AABAAAB</code>?`,
+    o: ["<code>[0,1,0,1,2,2,3]</code>", "<code>[0,1,0,1,2,3,3]</code>", "<code>[0,1,0,1,2,0,3]</code>", "<code>[0,1,0,0,1,2,3]</code>"], a: 0,
+    why: `At index 5, <code>AABAAA</code>: we try to extend border <code>AA</code> with <code>B</code> but see <code>A</code>, fall back to border <code>A</code> and extend it to <code>AA</code>, so 2. At index 6, <code>AA</code> + <code>B</code> = <code>AAB</code>, so 3.` },
+  { q: `Pattern <code>ABABC</code> (<code>lps = [0,0,1,2,0]</code>). We've matched <code>ABAB</code> (j = 4) and <code>text[i] = 'A'</code>, which isn't <code>C</code>. What happens next?`,
+    o: ["<code>i</code> moves back 3 places and we restart", "<code>j = lps[3] = 2</code>, then compare the same <code>'A'</code> with <code>pattern[2]</code>, which matches, so j = 3", "<code>j = 0</code> and we move to <code>text[i+1]</code>", "<code>j = 3</code> and we move to <code>text[i+1]</code>"], a: 1,
+    why: `On a mismatch with j &gt; 0 we fall back with <code>j = lps[j−1]</code> and compare the <strong>same</strong> text character again. <code>pattern[2] = 'A'</code> matches, so j becomes 3. <code>i</code> never moves backward.` },
+  { q: `Why doesn't the inner <code>while</code> loop make KMP search <code>O(n·m)</code>?`,
+    o: ["Because <code>lps</code> values are always 0 or 1", "Because each fallback lowers <code>j</code> by at least 1, and <code>j</code> rises at most once per text character, so there are at most n fallbacks in total", "Because the while loop runs at most once per character", "It actually is <code>O(n·m)</code> in the worst case"], a: 1,
+    why: `This is the amortised “bank balance” argument. Total rises ≤ n and every fallback spends at least 1, so total fallbacks ≤ n and total comparisons ≤ 2n. A single character <em>can</em> trigger several fallbacks (see “Fallback chain”); it's the <em>total</em> that is bounded.` },
+  { q: `What extra space does KMP need for a text of length n and a pattern of length m (not counting the output)?`,
+    o: ["<code>O(1)</code>", "<code>O(m)</code>", "<code>O(n)</code>", "<code>O(n·m)</code>"], a: 1,
+    why: `Only the <code>lps</code> array of length m. The text is read once, left to right, so it could even come from a stream.` },
+  { q: `Searching <code>AA</code> in <code>AAAA</code>, a bug sets <code>j = 0</code> after each full match instead of <code>j = lps[m−1]</code>. What does it return?`,
+    o: ["<code>[0, 1, 2]</code>", "<code>[0, 2]</code>", "<code>[0]</code>", "<code>[]</code>"], a: 1,
+    why: `Resetting to 0 throws away the trailing <code>A</code> that could start the next match, so the overlapping match at index 1 is missed. The correct answer is <code>[0, 1, 2]</code>.` },
+  { q: `Which input makes <strong>naive</strong> search slowest relative to KMP?`,
+    o: ["Text and pattern of random letters A–Z", "Text <code>AAAA…A</code>, pattern <code>AA…AB</code>", "Pattern longer than the text", "Pattern that occurs once, at index 0"], a: 1,
+    why: `Every alignment matches m−1 characters before failing on the last one, so naive does about (n−m+1)·m comparisons. On random A–Z text, mismatches usually come on the first character.` },
+  { q: `You must search the same pattern in k different texts, each of length n. What's the total KMP cost?`,
+    o: ["<code>O(k·(n + m))</code>, rebuilding lps each time is required", "<code>O(m + k·n)</code>, build lps once and reuse it", "<code>O(k·n·m)</code>", "<code>O(n + m)</code> regardless of k"], a: 1,
+    why: `The <code>lps</code> table depends only on the pattern, so preprocess once in O(m) and run each O(n) scan with it. Separating preprocessing from scanning is a big part of why KMP is useful in practice.` }
+], true);
+
+/* =====================================================================
+   8. Coding challenges with in-browser Python (Pyodide)
+   ===================================================================== */
+const HELPERS_PY = PY_LPS + "\n\n\n" + PY_SEARCH + "\n";
+const CHALLENGES = [
+  { id: "rot", title: "Is it a rotation?", level: "warm-up", fn: "is_rotation",
+    desc: `Return <code>True</code> if string <code>b</code> is a rotation of <code>a</code> (e.g. <code>waterbottle</code> → <code>erbottlewat</code>). Use one call to <code>kmp_search</code>.`,
+    starter: `def is_rotation(a, b):
+    # kmp_search(text, pattern) and build_lps(pattern) are available.
+    # Your code here:
+    pass
+`,
+    hints: ["Write out every rotation of <code>abcd</code>. Where do they all appear inside <code>abcdabcd</code>?",
+            "<code>b</code> is a rotation of <code>a</code> exactly when the lengths match and <code>b</code> occurs in <code>a + a</code>."],
+    solution: `def is_rotation(a, b):
+    # every rotation of a appears inside a + a
+    return len(a) == len(b) and len(kmp_search(a + a, b)) > 0
+`,
+    tests: [[["waterbottle", "erbottlewat"], true], [["abcde", "cdeab"], true], [["abc", "acb"], false],
+            [["aa", "a"], false], [["", ""], true], [["aaab", "abaa"], true]] },
+  { id: "rep", title: "Repeated substring pattern", level: "core", fn: "repeated_substring_pattern",
+    desc: `Return <code>True</code> if <code>s</code> is some shorter string repeated two or more times (<code>"abcabc"</code> → True, <code>"aba"</code> → False). Solve it in <code>O(n)</code> with the LPS table.`,
+    starter: `def repeated_substring_pattern(s):
+    # Hint: look at build_lps(s)[-1]
+    # Your code here:
+    pass
+`,
+    hints: ["If <code>s = u·u·…·u</code> (k copies), its longest border is <code>u</code> repeated k−1 times.",
+            "Let <code>b = build_lps(s)[-1]</code>. Then <code>n − b</code> is the length of the candidate block. Check <code>b &gt; 0</code> and <code>n % (n − b) == 0</code>."],
+    solution: `def repeated_substring_pattern(s):
+    if not s:
+        return False
+    n = len(s)
+    b = build_lps(s)[-1]          # longest border of the whole string
+    # s = u*k  <=>  border is u*(k-1)  <=>  (n - b) divides n
+    return b > 0 and n % (n - b) == 0
+`,
+    tests: [[["abab"], true], [["aba"], false], [["abcabcabcabc"], true], [["a"], false],
+            [["aaaa"], true], [["abaababaab"], true], [["abac"], false]] },
+  { id: "pal", title: "Shortest palindrome", level: "stretch", fn: "shortest_palindrome",
+    desc: `Add the fewest characters to the <strong>front</strong> of <code>s</code> to make a palindrome (<code>"abcd"</code> → <code>"dcbabcd"</code>). Find the longest palindromic prefix in <code>O(n)</code> using LPS.`,
+    starter: `def shortest_palindrome(s):
+    # Your code here:
+    pass
+`,
+    hints: ["You need the longest prefix of <code>s</code> that is a palindrome. Then reverse the rest and put it in front.",
+            "A prefix of <code>s</code> is a palindrome when it equals a suffix of <code>reversed(s)</code>, which is a border question! Use <code>build_lps(s + '#' + s[::-1])[-1]</code>. The <code>#</code> stops a border from crossing the middle."],
+    solution: `def shortest_palindrome(s):
+    rev = s[::-1]
+    # longest palindromic prefix = longest border of s + '#' + rev
+    k = build_lps(s + '#' + rev)[-1]
+    return rev[:len(s) - k] + s
+`,
+    tests: [[["aacecaaa"], "aaacecaaa"], [["abcd"], "dcbabcd"], [[""], ""], [["a"], "a"],
+            [["aba"], "aba"], [["abb"], "bbabb"]] }
+];
+const RUNNER_PY = `
+import sys, io, json, traceback
+def _run(helpers, user_src, fn_name, tests_json):
+    buf = io.StringIO(); old = sys.stdout; sys.stdout = buf
+    passed = 0
+    try:
+        tests = json.loads(tests_json)
+        g = {}
+        exec(helpers, g)
+        exec(user_src, g)
+        fn = g.get(fn_name)
+        if fn is None:
+            print(f"Define a function named {fn_name}(...)")
+        else:
+            for args, expected in tests:
+                call = f"{fn_name}({', '.join(map(repr, args))})"
+                try:
+                    got = fn(*args)
+                except Exception as e:
+                    print(f"✗ {call} raised {type(e).__name__}: {e}")
+                    continue
+                ok = got == expected
+                passed += ok
+                print(("✓ " if ok else "✗ ") + f"{call} -> {got!r}" + ("" if ok else f"   (expected {expected!r})"))
+            print(f"\\n{passed}/{len(tests)} tests passed" + ("  🎉" if passed == len(tests) else ""))
+    except Exception:
+        traceback.print_exc(file=buf)
+    finally:
+        sys.stdout = old
+    return buf.getvalue()
+`;
+let pyPromise = null;
+function getPython() {
+  if (!pyPromise) {
+    pyPromise = new Promise((resolve, reject) => {
+      const s = document.createElement("script");
+      s.src = "https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js";
+      s.onload = async () => {
+        try { const py = await loadPyodide({indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.2/full/"}); py.runPython(RUNNER_PY); resolve(py); }
+        catch (e) { reject(e); }
+      };
+      s.onerror = () => reject(new Error("Could not download the Python runtime."));
+      document.head.appendChild(s);
+    });
+    pyPromise.catch(() => { pyPromise = null; });
+  }
+  return pyPromise;
+}
+(function challenges() {
+  const tabs = $("#chTabs"), panels = $("#chPanels");
+  tabs.innerHTML = CHALLENGES.map((c, i) => `<button role="tab" aria-selected="${i === 0}" data-tab="${c.id}">${c.title}</button>`).join("");
+  panels.innerHTML = CHALLENGES.map((c, i) => `
+    <div class="panel" data-panel="${c.id}" ${i ? "hidden" : ""}>
+      <div class="pg">
+        <div class="pg-head"><h4>${c.title}<span class="lvl">${c.level}</span></h4><p style="margin:0">${c.desc}</p></div>
+        <textarea spellcheck="false" aria-label="Python code for ${esc(c.title)}">${esc(c.starter)}</textarea>
+        <div class="pg-bar">
+          <button class="btn primary run">▶ Run tests</button>
+          <button class="btn hintb">Hint (${c.hints.length})</button>
+          <button class="btn sol">Show solution</button>
+          <button class="btn ghost reset">Reset</button>
+        </div>
+        <div class="hints"></div>
+        <pre class="pg-out" aria-live="polite">Write your function, then press Run tests.</pre>
+      </div>
+    </div>`).join("");
+  wireTabs(tabs, panels);
+  CHALLENGES.forEach(c => {
+    const root = $(`.panel[data-panel="${c.id}"]`, panels), ta = $("textarea", root), out = $(".pg-out", root);
+    let shown = 0;
+    ta.addEventListener("keydown", e => {
+      if (e.key === "Tab" && !e.shiftKey) { e.preventDefault(); const s = ta.selectionStart; ta.setRangeText("    ", s, ta.selectionEnd, "end"); }
+      if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); $(".run", root).click(); }
+    });
+    $(".run", root).onclick = async () => {
+      out.textContent = "Loading Python (first run only, takes a few seconds)…";
+      try {
+        const py = await getPython();
+        out.textContent = "Running…";
+        const res = py.globals.get("_run")(HELPERS_PY, ta.value, c.fn, JSON.stringify(c.tests));
+        out.textContent = res;
+      } catch (e) {
+        out.textContent = "Couldn't start the in-browser Python runtime (it needs an internet connection).\nRun the same tests offline with:  python code/challenges.py";
+      }
+    };
+    $(".hintb", root).onclick = () => {
+      if (shown < c.hints.length) { $(".hints", root).insertAdjacentHTML("beforeend", `<p class="hint">💡 ${c.hints[shown]}</p>`); shown++; }
+      $(".hintb", root).textContent = shown < c.hints.length ? `Next hint (${c.hints.length - shown})` : "No more hints";
+      $(".hintb", root).disabled = shown >= c.hints.length;
+    };
+    $(".sol", root).onclick = () => { if (confirm("Show the solution? Try at least one hint first.")) { ta.value = c.solution; out.textContent = "Solution loaded. Press Run tests, then read the comments."; } };
+    $(".reset", root).onclick = () => { ta.value = c.starter; out.textContent = "Reset."; };
+  });
+})();
+
+/* =====================================================================
+   Progress tracking, TOC and lesson map
+   ===================================================================== */
+const SECTIONS = [
+  {id: "intro", t: "Why KMP?", min: 3}, {id: "naive", t: "Naive search", min: 5},
+  {id: "insight", t: "Key insight: borders", min: 5}, {id: "lps", t: "The LPS table", min: 8},
+  {id: "search", t: "KMP search", min: 8}, {id: "code", t: "Code", min: 3},
+  {id: "complexity", t: "Complexity", min: 4}, {id: "edges", t: "Edge cases", min: 2},
+  {id: "practice", t: "Check & challenge", min: 7}
+];
+const KEY = "kmp-lesson-progress-v1";
+let done = new Set();
+try { done = new Set(JSON.parse(localStorage.getItem(KEY) || "[]")); } catch { /* storage unavailable */ }
+function save() { try { localStorage.setItem(KEY, JSON.stringify([...done])); } catch { /* ignore */ } }
+$("#toc").innerHTML = SECTIONS.map((s, i) => `<li><a href="#${s.id}" data-id="${s.id}"><span class="dot">${i + 1}</span>${s.t}<span class="min">${s.min}′</span></a></li>`).join("");
+$("#lessonMap").innerHTML = SECTIONS.map(s => `<a href="#${s.id}" data-id="${s.id}" style="--m:${s.min}"><b>${s.min}′</b><span>${s.t}</span></a>`).join("");
+function refresh() {
+  const total = SECTIONS.reduce((a, s) => a + s.min, 0), left = SECTIONS.filter(s => !done.has(s.id)).reduce((a, s) => a + s.min, 0);
+  $("#progFill").style.width = `${(done.size / SECTIONS.length) * 100}%`;
+  $("#progTxt").textContent = left ? `${done.size}/${SECTIONS.length} sections · about ${left} of ${total} min left` : "Lesson complete 🎉";
+  $$("#toc a, #lessonMap a").forEach(a => a.classList.toggle("done", done.has(a.dataset.id)));
+  $$("#toc a").forEach((a, i) => $(".dot", a).textContent = done.has(a.dataset.id) ? "✓" : i + 1);
+  $$(".done-btn").forEach(b => { const d = done.has(b.dataset.done); b.classList.toggle("is-done", d); b.textContent = d ? "Completed ✓" : "Mark complete ✓"; });
+}
+$$(".done-btn").forEach(b => b.onclick = () => {
+  const id = b.dataset.done;
+  if (done.has(id)) done.delete(id); else {
+    done.add(id);
+    const nxt = SECTIONS[SECTIONS.findIndex(s => s.id === id) + 1];
+    if (nxt) setTimeout(() => $("#" + nxt.id).scrollIntoView({behavior: "smooth"}), 250);
+  }
+  save(); refresh();
+});
+refresh();
+const io = new IntersectionObserver(es => es.forEach(e => {
+  if (e.isIntersecting) $$("#toc a").forEach(a => a.classList.toggle("active", a.dataset.id === e.target.id));
+}), {rootMargin: "-30% 0px -60% 0px"});
+$$("section.lesson").forEach(s => io.observe(s));
+</script>
+</body>
+</html>

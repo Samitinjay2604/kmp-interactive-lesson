@@ -1,5 +1,7 @@
 # KMP Pattern Matching: a 45-minute interactive lesson
 
+**Author:** [Samitinjay2604 on GitHub](https://github.com/Samitinjay2604)
+
 An interactive, self-paced lesson that teaches the **Knuth–Morris–Pratt (KMP)** string-matching algorithm. Students build the idea up step by step: why naive search wastes work, what a *border* is, how the LPS table is built, how the search uses it, and why it runs in `O(n + m)`.
 
 ## How to open it
